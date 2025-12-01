@@ -1,4 +1,4 @@
-// src/ui/loginTest.ts
+// src/ui/authenticateTest.ts
 import promptSync from 'prompt-sync';
 import { AuthService } from '../services/AuthService';
 import { FileTokenStorage } from '../storage/TokenStorage';

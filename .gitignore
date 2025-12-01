@@ -1,10 +1,25 @@
-# Ignorar dependências e builds
+# Node.js
 node_modules/
 src/node_modules/
 
-# Arquivos gerados
+# Builds
 dist/
 build/
 
-# Arquivos sensíveis
+# Logs
+*.log
+
+# Ambiente e variáveis
 .env
+
+# Arquivos sensíveis
+token.json
+src/storage/token.json
+
+# Cache do editor
+.vscode/
+.idea/
+
+# SOs
+.DS_Store
+Thumbs.db

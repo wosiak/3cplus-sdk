@@ -1,5 +1,4 @@
 // src/ui/authenticateTest.ts
-
 import promptSync from 'prompt-sync';
 import { AuthService } from '../services/AuthService';
 import { FileTokenStorage } from '../storage/TokenStorage';
@@ -32,10 +31,10 @@ const password = prompt('Senha: ');
       domain: domain
     });
 
-    console.log('\n💾 Token e domínio salvos com sucesso!');
+    console.log('\nToken e domínio salvos com sucesso!');
 
   } catch (error: any) {
-    console.error('\n❌ Erro ao autenticar!');
+    console.error('\nErro ao autenticar!');
     if (error.response) {
       console.error('Status:', error.response.status);
       console.error('Mensagem:', error.response.data.message || error.response.data);

@@ -1,5 +1,4 @@
 // src/ui/agentLoginTest.ts
-
 import PromptSync from "prompt-sync";
 import { AgentService } from "../services/AgentService";
 import { FileTokenStorage } from "../storage/TokenStorage";
@@ -9,7 +8,7 @@ const storage = new FileTokenStorage();
 const auth = storage.getAuthData();
 
 if (!auth) {
-  console.error("❌ Token não encontrado. Execute authenticateTest.ts primeiro.");
+  console.error("Token não encontrado. Execute authenticateTest.ts primeiro.");
   process.exit(1);
 }
 
@@ -24,9 +23,9 @@ if (!auth) {
       mode: 'dialer'
     });
 
-    console.log('\n✅ Login do agente realizado com sucesso!');
+    console.log('\nLogin do agente realizado com sucesso!');
   } catch (error: any) {
-    console.error('\n❌ Erro ao realizar login do agente.');
+    console.error('\nErro ao realizar login do agente.');
     if (error.response) {
       console.error('Status:', error.response.status);
       console.error('Mensagem:', error.response.data.message || error.response.data);

@@ -1,7 +1,7 @@
 // src/ui/loginTest.ts
-
 import promptSync from 'prompt-sync';
 import { AuthService } from '../services/AuthService';
+import { FileTokenStorage } from '../storage/TokenStorage';
 
 const prompt = promptSync();
 
@@ -24,6 +24,9 @@ const password = prompt('Senha: ');
     console.log('Operador:', result.data.name);
     console.log('Empresa:', result.data.company.name);
 
+    const tokenStorage = new FileTokenStorage();
+    tokenStorage.saveToken(result.data.api_token);
+    
   } catch (error: any) {
     console.error('\n❌ Erro ao autenticar!');
     if (error.response) {

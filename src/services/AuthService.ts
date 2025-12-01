@@ -1,5 +1,4 @@
 // src/services/AuthService.ts
-
 import { ApiClient } from '../api/ApiClient';
 import { AuthenticationRequest, AuthenticationResponse } from '../models/Auth';
 
@@ -8,7 +7,7 @@ export class AuthService {
 
   constructor(companyDomain: string) {
     const baseURL = `https://${companyDomain}.3c.plus/api/v1/`;
-    this.client = new ApiClient(baseURL);
+    this.client = new ApiClient(baseURL); // sem token
   }
 
   async authenticate(request: AuthenticationRequest): Promise<AuthenticationResponse> {

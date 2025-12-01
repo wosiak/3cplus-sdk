@@ -1,0 +1,10 @@
+# Ignorar dependências e builds
+node_modules/
+src/node_modules/
+
+# Arquivos gerados
+dist/
+build/
+
+# Arquivos sensíveis
+.env

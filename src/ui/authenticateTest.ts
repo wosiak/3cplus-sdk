@@ -1,4 +1,5 @@
 // src/ui/authenticateTest.ts
+
 import promptSync from 'prompt-sync';
 import { AuthService } from '../services/AuthService';
 import { FileTokenStorage } from '../storage/TokenStorage';
@@ -20,13 +21,19 @@ const password = prompt('Senha: ');
     });
 
     console.log('\nAutenticação realizada com sucesso!');
-    console.log('Api_token - JWT:', result.data.api_token);
+    console.log('JWT:', result.data.api_token);
     console.log('Operador:', result.data.name);
     console.log('Empresa:', result.data.company.name);
 
-    const tokenStorage = new FileTokenStorage();
-    tokenStorage.saveToken(result.data.api_token);
-    
+    const storage = new FileTokenStorage();
+
+    storage.saveAuthData({
+      token: result.data.api_token,
+      domain: domain
+    });
+
+    console.log('\n💾 Token e domínio salvos com sucesso!');
+
   } catch (error: any) {
     console.error('\n❌ Erro ao autenticar!');
     if (error.response) {

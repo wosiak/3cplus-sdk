@@ -1,14 +1,18 @@
 // src/ui/campaignsTest.ts
-
-import promptSync from 'prompt-sync';
 import { CampaignService } from '../services/CampaignService';
+import { FileTokenStorage } from '../storage/TokenStorage';
 
-const prompt = promptSync();
-const domain = prompt('Domínio da Empresa: ');
+const storage = new FileTokenStorage();
+const auth = storage.getAuthData();
+
+if (!auth) {
+  console.log('❌ Nenhum token encontrado. Autentique-se executando authenticateTest.ts');
+  process.exit(1);
+}
 
 (async () => {
   try {
-    const campaignService = new CampaignService(domain);
+    const campaignService = new CampaignService(auth.domain);
     const campaigns = await campaignService.getAvailableCampaigns();
 
     console.log('\n📋 Campanhas disponíveis:');

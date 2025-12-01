@@ -1,27 +1,30 @@
 // src/ui/agentLoginTest.ts
+
 import PromptSync from "prompt-sync";
 import { AgentService } from "../services/AgentService";
-import { AgentLoginRequest } from "../models/Agent";
+import { FileTokenStorage } from "../storage/TokenStorage";
 
 const prompt = PromptSync();
+const storage = new FileTokenStorage();
+const auth = storage.getAuthData();
 
-const domain = prompt('Domínio da Empresa: ');
-
-const campaignId = Number(prompt('ID da campanha: '));
+if (!auth) {
+  console.error("❌ Token não encontrado. Execute authenticateTest.ts primeiro.");
+  process.exit(1);
+}
 
 (async () => {
   try {
-    const agentService = new AgentService(domain);
+    const campaignId = Number(prompt('ID da campanha para login: '));
 
-    const request: AgentLoginRequest = {
+    const agentService = new AgentService(auth.domain);
+
+    await agentService.login({
       campaign: campaignId,
       mode: 'dialer'
-    };
-
-    await agentService.login(request);
+    });
 
     console.log('\n✅ Login do agente realizado com sucesso!');
-
   } catch (error: any) {
     console.error('\n❌ Erro ao realizar login do agente.');
     if (error.response) {

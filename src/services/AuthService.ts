@@ -1,7 +1,7 @@
 // src/services/AuthService.ts
 
 import { ApiClient } from '../api/ApiClient';
-import { LoginRequest, LoginResponse } from '../models/Auth';
+import { AuthenticationRequest, AuthenticationResponse } from '../models/Auth';
 
 export class AuthService {
   private client: ApiClient;
@@ -11,8 +11,8 @@ export class AuthService {
     this.client = new ApiClient(baseURL);
   }
 
-  async authenticate(request: LoginRequest): Promise<LoginResponse> {
-    const response = await this.client.instance.post<LoginResponse>(
+  async authenticate(request: AuthenticationRequest): Promise<AuthenticationResponse> {
+    const response = await this.client.instance.post<AuthenticationResponse>(
       'authenticate',
       request
     );

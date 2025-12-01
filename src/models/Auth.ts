@@ -1,5 +1,5 @@
 // src/models/Auth.ts
-export interface LoginRequest {
+export interface AuthenticationRequest {
   user: string;
   password: string;
   token_type: 'jwt';
@@ -15,7 +15,7 @@ export interface CompanyInfo {
   domain: string;
 }
 
-export interface LoginResponse {
+export interface AuthenticationResponse {
   status: number;
   data: {
     api_token: string;

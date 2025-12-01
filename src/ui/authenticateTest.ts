@@ -19,8 +19,8 @@ const password = prompt('Senha: ');
       token_type: 'jwt'
     });
 
-    console.log('\nLogin realizado com sucesso!');
-    console.log('Token JWT:', result.data.api_token);
+    console.log('\nAutenticação realizada com sucesso!');
+    console.log('Api_token - JWT:', result.data.api_token);
     console.log('Operador:', result.data.name);
     console.log('Empresa:', result.data.company.name);
 

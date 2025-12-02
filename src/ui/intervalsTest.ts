@@ -15,7 +15,7 @@ if (!auth) {
     const intervalService = new IntervalService(auth.domain);
     const intervals = await intervalService.getAvailableIntervals();
 
-    console.log('\n⏱️ Intervalos disponíveis:');
+    console.log('\nIntervalos disponíveis:');
     intervals.forEach((interval, index) => {
       console.log(`${index + 1}. ${interval.name} (ID: ${interval.id})`);
     });

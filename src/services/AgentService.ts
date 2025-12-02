@@ -1,6 +1,6 @@
 // src/services/AgentService.ts
 import { createApiClient } from '../api/ApiClientFactory';
-import { AgentLoginRequest } from '../models/Agent';
+import { AgentLoginRequest, AgentLogoutRequest } from '../models/Agent';
 
 export class AgentService {
   private client;
@@ -11,5 +11,9 @@ export class AgentService {
 
   async login(data: AgentLoginRequest) {
     return this.client.instance.post('/agent/login', data);
+  }
+
+  async logout() {
+    return this.client.instance.post('/agent/logout');
   }
 }

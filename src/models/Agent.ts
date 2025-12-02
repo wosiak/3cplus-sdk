@@ -7,4 +7,3 @@ export interface AgentLoginRequest{
 export interface AgentLogoutRequest{
     // Não é necessário corpo na requisição de logout
 }
-

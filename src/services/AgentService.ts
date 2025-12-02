@@ -1,6 +1,6 @@
 // src/services/AgentService.ts
 import { createApiClient } from '../api/ApiClientFactory';
-import { AgentLoginRequest, AgentLogoutRequest } from '../models/Agent';
+import { AgentLoginRequest } from '../models/Agent';
 
 export class AgentService {
   private client;
@@ -15,5 +15,9 @@ export class AgentService {
 
   async logout() {
     return this.client.instance.post('/agent/logout');
+  }
+
+  async workBreakEnter(interval_id: number) {
+    return this.client.instance.post(`/agent/work_break/${interval_id}/enter`)
   }
 }

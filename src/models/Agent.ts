@@ -4,6 +4,6 @@ export interface AgentLoginRequest{
     mode: 'dialer';
 }
 
-export interface AgentLogoutRequest{
-    // Não é necessário corpo na requisição de logout
+export interface AgentWorkBreakEnter{
+    interval_id: number;
 }

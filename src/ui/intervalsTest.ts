@@ -21,7 +21,7 @@ if (!auth) {
     });
 
   } catch (error: any) {
-    console.error('\nErro ao buscar intervalos');
+    console.error('\nErro ao buscar intervalos.');
     if (error.response) {
       console.error('Status:', error.response.status);
       console.error('Mensagem:', error.response.data.message || error.response.data);

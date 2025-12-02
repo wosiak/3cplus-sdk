@@ -1,7 +1,7 @@
 // src/ui/manualCallDialTest.ts
 import PromptSync from "prompt-sync";
-import { FileTokenStorage } from "../storage/TokenStorage";
 import { ManualCallService } from "../services/ManualCallService";
+import { FileTokenStorage } from "../storage/TokenStorage";
 
 const prompt = PromptSync();
 const storage = new FileTokenStorage();
@@ -15,13 +15,18 @@ if (!auth) {
 (async () => {
   try {
     const phone = Number(prompt('Digite o número desejado: '));
+
     const manualCall = new ManualCallService(auth.domain);
+    const result = await manualCall.manualCallDial({ phone });
 
-    await manualCall.manualCallDial({ phone });
+    const callId = result.call.id;
+    console.log(`\nLigação iniciada para ${result.call.number}`);
+    console.log(`ID da Chamada: ${callId}`);
+    console.log(`Agente: ${result.agent.name}`);
 
-    console.log(`\n📞 Ligação iniciada para o número: ${phone}`);
+
   } catch (error: any) {
-    console.error('\n❌ Erro ao iniciar chamada manual.');
+    console.error('\nErro ao iniciar chamada.');
     if (error.response) {
       console.error('Status:', error.response.status);
       console.error('Mensagem:', error.response.data.message || error.response.data);

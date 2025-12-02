@@ -20,4 +20,8 @@ export class AgentService {
   async workBreakEnter(interval_id: number) {
     return this.client.instance.post(`/agent/work_break/${interval_id}/enter`)
   }
+  
+  async workBreakExit() {
+    return this.client.instance.post('/agent/work_break/exit');
+  }
 }

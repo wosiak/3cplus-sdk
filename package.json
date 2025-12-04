@@ -11,11 +11,13 @@
   "description": "",
   "devDependencies": {
     "@types/prompt-sync": "^4.2.3",
+    "@types/socket.io-client": "^1.4.36",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },
   "dependencies": {
     "axios": "^1.13.2",
-    "prompt-sync": "^4.2.0"
+    "prompt-sync": "^4.2.0",
+    "socket.io-client": "^4.7.5"
   }
 }

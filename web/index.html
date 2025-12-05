@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3C Plus - Operador</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Cores principais da 3C Plus */
+      --bg-primary: #F9FAFC;
+      --bg-secondary: #FFFFFF;
+      --bg-tertiary: #F0F2F5;
+      --border-color: #E1E5EB;
+      --text-primary: #373753;
+      --text-secondary: #6B7280;
+      --text-muted: #9CA3AF;
+      
+      /* Cores de destaque */
+      --accent-blue: #294ace;
+      --accent-blue-hover: #1e3a9f;
+      --accent-blue-light: rgba(41, 74, 206, 0.1);
+      --accent-3cplus: #FFBB3A;
+      --accent-3cplus-dark: #E5A730;
+      --accent-manual: #E67C0B;
+      --accent-green: #10B981;
+      --accent-green-light: rgba(16, 185, 129, 0.1);
+      --accent-red: #EF4444;
+      --accent-red-light: rgba(239, 68, 68, 0.1);
+      --accent-orange: #F59E0B;
+      --accent-orange-light: rgba(245, 158, 11, 0.1);
+      
+      --shadow: 0 4px 12px rgba(55, 55, 83, 0.08);
+      --shadow-lg: 0 8px 24px rgba(55, 55, 83, 0.12);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Manual Mode has 3C Plus yellow accent */
+    body.manual-mode {
+      background: linear-gradient(180deg, #FFF9E6 0%, var(--bg-primary) 100%);
+    }
+
+    header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow);
+    }
+
+    body.manual-mode header {
+      background: linear-gradient(90deg, #FFF9E6, #FFFDF5);
+      border-bottom-color: var(--accent-3cplus);
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--accent-blue);
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .logo::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 24px;
+      background: var(--accent-3cplus);
+      border-radius: 2px;
+    }
+
+    .logo span {
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    body.manual-mode .logo {
+      color: var(--accent-3cplus-dark);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+    }
+
+    .status-badge.connected {
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+      background: var(--accent-green-light);
+    }
+
+    .status-badge.disconnected {
+      border-color: var(--accent-red);
+      color: var(--accent-red);
+      background: var(--accent-red-light);
+    }
+
+    .status-badge.manual {
+      border-color: var(--accent-3cplus);
+      color: var(--accent-3cplus-dark);
+      background: rgba(255, 187, 58, 0.15);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      padding: 2rem;
+      gap: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    body.manual-mode .panel {
+      border-color: rgba(255, 187, 58, 0.4);
+      box-shadow: 0 4px 12px rgba(255, 187, 58, 0.1);
+    }
+
+    .panel-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .panel-body {
+      padding: 1.25rem;
+    }
+
+    /* ============================================ */
+    /* SECTION: Login */
+    /* ============================================ */
+    .section {
+      display: none;
+      width: 100%;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    #login-section {
+      max-width: 400px;
+      margin: auto;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px var(--accent-blue-light);
+    }
+
+    .form-group input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent-blue);
+      color: #FFFFFF;
+      width: 100%;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-blue-hover);
+      box-shadow: 0 4px 12px rgba(41, 74, 206, 0.3);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-3cplus {
+      background: var(--accent-3cplus);
+      color: var(--text-primary);
+      width: 100%;
+    }
+
+    .btn-3cplus:hover {
+      background: var(--accent-3cplus-dark);
+      box-shadow: 0 4px 12px rgba(255, 187, 58, 0.4);
+    }
+
+    .btn-icon-manual {
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      border-radius: 50%;
+      background: var(--accent-manual);
+      color: white;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(230, 124, 11, 0.3);
+    }
+
+    .btn-icon-manual:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(230, 124, 11, 0.5);
+    }
+
+    .btn-icon-manual.active {
+      background: var(--accent-blue);
+      box-shadow: 0 2px 8px rgba(41, 74, 206, 0.3);
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border-color);
+    }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--accent-red);
+      border: 1px solid var(--accent-red);
+    }
+
+    .btn-danger:hover {
+      background: var(--accent-red-light);
+    }
+
+    .btn-sm {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+    }
+
+    /* ============================================ */
+    /* SECTION: Campaigns */
+    /* ============================================ */
+    #campaigns-section {
+      max-width: 600px;
+      margin: auto;
+    }
+
+    .campaign-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .campaign-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      background: var(--bg-primary);
+      border: 2px solid var(--border-color);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .campaign-item:hover {
+      border-color: var(--accent-blue);
+      background: var(--accent-blue-light);
+      box-shadow: var(--shadow);
+    }
+
+    .campaign-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .campaign-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-3cplus));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .campaign-name {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .campaign-id {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .campaign-arrow {
+      color: var(--text-muted);
+      font-size: 1.2rem;
+    }
+
+    .loading-campaigns {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+
+    /* ============================================ */
+    /* SECTION: Campaign Active (Dialer Mode) */
+    /* ============================================ */
+    #campaign-active-section {
+      max-width: 800px;
+      margin: auto;
+    }
+
+    .campaign-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .campaign-header-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .campaign-header-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-3cplus));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .campaign-header-name {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .campaign-header-status {
+      font-size: 0.85rem;
+      color: var(--accent-green);
+    }
+
+    .mode-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .mode-btn {
+      flex: 0 1 300px;
+      padding: 2rem 1.5rem;
+      background: var(--bg-primary);
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .mode-btn:hover {
+      border-color: var(--accent-3cplus);
+      background: rgba(255, 187, 58, 0.1);
+      box-shadow: var(--shadow);
+      transform: translateY(-2px);
+    }
+
+    .mode-btn-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .mode-btn-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .mode-btn-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* ============================================ */
+    /* SECTION: Manual Mode */
+    /* ============================================ */
+    #manual-mode-section {
+      max-width: 500px;
+      margin: auto;
+    }
+
+    .manual-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .manual-header-icon {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .manual-header-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent-3cplus-dark);
+    }
+
+    .manual-header-subtitle {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .dialer {
+      background: var(--bg-primary);
+      border-radius: 16px;
+      padding: 2rem;
+      border: 2px solid rgba(255, 187, 58, 0.4);
+    }
+
+    .dialer-input {
+      width: 100%;
+      padding: 1.25rem;
+      font-size: 1.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      text-align: center;
+      background: var(--bg-secondary);
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      color: var(--text-primary);
+      margin-bottom: 1.5rem;
+      letter-spacing: 2px;
+    }
+
+    .dialer-input:focus {
+      outline: none;
+      border-color: var(--accent-3cplus);
+      box-shadow: 0 0 0 3px rgba(255, 187, 58, 0.25);
+    }
+
+    .dialer-input::placeholder {
+      color: var(--text-muted);
+      letter-spacing: normal;
+    }
+
+    .dial-btn {
+      width: 100%;
+      padding: 1.25rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-3cplus), var(--accent-3cplus-dark));
+      color: var(--text-primary);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+    }
+
+    .dial-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(255, 187, 58, 0.4);
+    }
+
+    .dial-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .manual-actions {
+      margin-top: 1.5rem;
+      text-align: center;
+    }
+
+    /* ============================================ */
+    /* Call Info Panel */
+    /* ============================================ */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 2rem;
+      width: 100%;
+    }
+
+    .call-placeholder {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+    }
+
+    .call-placeholder-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .call-active {
+      display: none;
+    }
+
+    .call-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .call-avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-3cplus));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    .call-meta h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .call-meta span {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .call-details {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .detail-card {
+      background: var(--bg-primary);
+      border-radius: 8px;
+      padding: 1rem;
+      border: 1px solid var(--border-color);
+    }
+
+    .detail-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.25rem;
+    }
+
+    .detail-value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .detail-value.mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ============================================ */
+    /* Qualifications Panel */
+    /* ============================================ */
+    .qualifications-panel {
+      width: 350px;
+    }
+
+    .qualification-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .qualification-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-primary);
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .qualification-item:hover {
+      border-color: var(--accent-blue);
+      background: var(--accent-blue-light);
+    }
+
+    .qualification-item.selected {
+      border-color: var(--accent-blue);
+      background: var(--accent-blue-light);
+    }
+
+    .qualification-radio {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border-color);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .qualification-item.selected .qualification-radio {
+      border-color: var(--accent-blue);
+    }
+
+    .qualification-item.selected .qualification-radio::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--accent-blue);
+      border-radius: 50%;
+    }
+
+    .qualification-name {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .qualification-id {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .qualification-actions {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .no-qualifications {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+
+    /* ============================================ */
+    /* Events Log */
+    /* ============================================ */
+    .events-panel {
+      margin-top: 2rem;
+    }
+
+    .events-log {
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+    }
+
+    .event-item {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .event-item:last-child {
+      border-bottom: none;
+    }
+
+    .event-time {
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .event-type {
+      color: var(--accent-blue);
+      flex-shrink: 0;
+      min-width: 180px;
+    }
+
+    .event-data {
+      color: var(--text-secondary);
+      word-break: break-all;
+    }
+
+    /* ============================================ */
+    /* User Info */
+    /* ============================================ */
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .user-details {
+      text-align: right;
+    }
+
+    .user-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .user-company {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    /* ============================================ */
+    /* Toast Notifications */
+    /* ============================================ */
+    .toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .toast {
+      padding: 1rem 1.5rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      animation: slideIn 0.3s ease;
+      color: var(--text-primary);
+    }
+
+    .toast.success {
+      border-color: var(--accent-green);
+      background: linear-gradient(90deg, var(--accent-green-light), var(--bg-secondary));
+    }
+
+    .toast.error {
+      border-color: var(--accent-red);
+      background: linear-gradient(90deg, var(--accent-red-light), var(--bg-secondary));
+    }
+
+    .toast.warning {
+      border-color: var(--accent-3cplus);
+      background: linear-gradient(90deg, rgba(255, 187, 58, 0.15), var(--bg-secondary));
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    /* ============================================ */
+    /* Scrollbar */
+    /* ============================================ */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    /* ============================================ */
+    /* Loading Spinner */
+    /* ============================================ */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border-color);
+      border-top-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .spinner.yellow {
+      border-top-color: var(--accent-3cplus);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ============================================ */
+    /* Responsive */
+    /* ============================================ */
+    @media (max-width: 1024px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .qualifications-panel {
+        width: 100%;
+      }
+
+      .mode-buttons {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">3C Plus <span>Operador</span></div>
+    <div class="header-right" id="header-right">
+      <div class="status-badge disconnected" id="connection-status">
+        <span class="status-dot"></span>
+        <span id="status-text">Desconectado</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============================================ -->
+    <!-- SECTION 1: Login -->
+    <!-- ============================================ -->
+    <section id="login-section" class="section active">
+      <div class="panel">
+        <div class="panel-header">
+          <span>🔐</span> Autenticação
+        </div>
+        <div class="panel-body">
+          <form id="login-form">
+            <div class="form-group">
+              <label for="domain">Domínio da Empresa</label>
+              <input type="text" id="domain" placeholder="suaempresa" autocomplete="off" required>
+            </div>
+            <div class="form-group">
+              <label for="extension">Ramal</label>
+              <input type="text" id="extension" placeholder="1001" autocomplete="off" required>
+            </div>
+            <div class="form-group">
+              <label for="password">Senha</label>
+              <input type="password" id="password" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn btn-primary" id="login-btn">
+              Conectar
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- SECTION 2: Campaign Selection -->
+    <!-- ============================================ -->
+    <section id="campaigns-section" class="section">
+      <div class="panel">
+        <div class="panel-header">
+          <span>📋</span> Selecione uma Campanha
+        </div>
+        <div class="panel-body">
+          <div class="loading-campaigns" id="loading-campaigns">
+            <div class="spinner" style="margin: 0 auto 1rem;"></div>
+            <p>Carregando campanhas...</p>
+          </div>
+          <div class="campaign-list" id="campaign-list" style="display: none;">
+            <!-- Campaigns will be rendered here -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- SECTION 3: Campaign Active (Dialer Mode) -->
+    <!-- ============================================ -->
+    <section id="campaign-active-section" class="section">
+      <div class="panel">
+        <div class="panel-header">
+          <span>📞</span> Campanha Ativa
+        </div>
+        <div class="panel-body">
+          <div class="campaign-header">
+            <div class="campaign-header-info">
+              <div class="campaign-header-icon">📢</div>
+              <div>
+                <div class="campaign-header-name" id="active-campaign-name">--</div>
+                <div class="campaign-header-status">● Conectado à campanha</div>
+              </div>
+            </div>
+            <button class="btn-icon-manual" id="btn-toggle-manual" onclick="toggleManualMode()" title="Modo Manual">
+              📱
+            </button>
+          </div>
+          
+          <div class="campaign-status-info" id="campaign-status-info">
+            <p style="color: var(--text-secondary); margin-bottom: 0.5rem;">
+              Aguardando chamadas do discador automático...
+            </p>
+            <p style="color: var(--text-muted); font-size: 0.8rem;">
+              💡 Clique no botão laranja para discar manualmente.
+            </p>
+          </div>
+
+          <!-- Seção de Discador Manual (aparece/esconde) -->
+          <div id="manual-dialer-section" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+              <span style="font-size: 1.2rem;">📱</span>
+              <span style="font-weight: 600; color: var(--accent-manual);">Modo Manual</span>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+              <input 
+                type="tel" 
+                class="form-group input" 
+                id="phone-input-campaign" 
+                placeholder="(00) 00000-0000"
+                maxlength="20"
+                style="flex: 1; padding: 0.75rem 1rem; font-family: 'JetBrains Mono', monospace; background: var(--bg-primary);"
+              >
+              <button class="btn btn-primary" id="dial-btn-campaign" onclick="handleDialFromCampaign()" style="width: auto; padding: 0.75rem 1.5rem;">
+                📞 Ligar
+              </button>
+            </div>
+          </div>
+
+          <!-- Call Info (shows when call is active) -->
+          <div id="call-info-campaign" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+            <div class="call-header" style="border-bottom: none; padding-bottom: 0; margin-bottom: 1rem;">
+              <div class="call-avatar" id="call-avatar-campaign">📞</div>
+              <div class="call-meta">
+                <h2 id="call-phone-campaign" style="font-size: 1.25rem;">--</h2>
+                <span id="call-status-campaign">Chamada conectada</span>
+              </div>
+            </div>
+            <div class="call-details">
+              <div class="detail-card">
+                <div class="detail-label">ID da Chamada</div>
+                <div class="detail-value mono" id="call-id-campaign">--</div>
+              </div>
+              <div class="detail-card">
+                <div class="detail-label">Duração</div>
+                <div class="detail-value mono" id="call-duration-campaign">00:00</div>
+              </div>
+            </div>
+            <!-- Botão Desligar -->
+            <div style="margin-top: 1rem;">
+              <button 
+                id="hangup-btn" 
+                class="btn btn-danger" 
+                onclick="handleHangup()"
+                style="width: 100%; padding: 0.875rem; font-size: 1rem;"
+              >
+                📞 Desligar
+              </button>
+            </div>
+          </div>
+
+          <!-- Qualifications (shows after call answered) -->
+          <div id="qualifications-campaign" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+              <span style="font-size: 1.2rem;">✅</span>
+              <span style="font-weight: 600;">Qualificações</span>
+            </div>
+            <div class="qualification-list" id="qualification-list-campaign">
+              <!-- Qualifications will be added here -->
+            </div>
+            <div style="margin-top: 1rem;">
+              <button class="btn btn-primary" id="send-qualification-btn-campaign" disabled onclick="handleSendQualificationFromCampaign()">
+                Enviar Qualificação
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Botão Sair da Campanha (pouco utilizado, fica embaixo) -->
+        <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--border-color); text-align: center;">
+          <button class="btn btn-secondary btn-sm" onclick="handleLeaveCampaign()" style="color: var(--text-muted); font-size: 0.75rem;">
+            Sair da Campanha
+          </button>
+        </div>
+      </div>
+
+      <!-- Events Log -->
+      <div class="panel events-panel">
+        <div class="panel-header">
+          <span>📡</span> Log de Eventos
+        </div>
+        <div class="panel-body">
+          <div class="events-log" id="events-log">
+            <!-- Events will be added here -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- SECTION 4: Manual Mode -->
+    <!-- ============================================ -->
+    <section id="manual-mode-section" class="section">
+      <div class="panel">
+        <div class="panel-body">
+          <div class="manual-header">
+            <div class="manual-header-icon">📱</div>
+            <div class="manual-header-title">Modo Manual</div>
+            <div class="manual-header-subtitle">Digite o número e clique em Ligar</div>
+          </div>
+
+          <div class="dialer">
+            <input 
+              type="tel" 
+              class="dialer-input" 
+              id="phone-input" 
+              placeholder="(00) 00000-0000"
+              maxlength="20"
+            >
+            <button class="dial-btn" id="dial-btn" onclick="handleDial()">
+              <span>📞</span> Ligar
+            </button>
+          </div>
+
+          <div class="manual-actions">
+            <button class="btn btn-secondary" onclick="handleExitManualMode()">
+              ← Sair do Modo Manual
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Call Info (shows when call is active) -->
+      <div class="panel" id="call-info-panel" style="margin-top: 2rem; display: none;">
+        <div class="panel-header">
+          <span>📞</span> Chamada Ativa
+        </div>
+        <div class="panel-body">
+          <div class="call-header">
+            <div class="call-avatar" id="call-avatar">📞</div>
+            <div class="call-meta">
+              <h2 id="call-phone">--</h2>
+              <span id="call-status">Chamada conectada</span>
+            </div>
+          </div>
+          <div class="call-details">
+            <div class="detail-card">
+              <div class="detail-label">ID da Chamada</div>
+              <div class="detail-value mono" id="call-id">--</div>
+            </div>
+            <div class="detail-card">
+              <div class="detail-label">Agente</div>
+              <div class="detail-value" id="agent-name">--</div>
+            </div>
+            <div class="detail-card">
+              <div class="detail-label">Campanha</div>
+              <div class="detail-value" id="campaign-name">--</div>
+            </div>
+            <div class="detail-card">
+              <div class="detail-label">Duração</div>
+              <div class="detail-value mono" id="call-duration">00:00</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Qualifications Panel -->
+      <div class="panel qualifications-panel" id="qualifications-panel" style="margin-top: 2rem; display: none; width: 100%; max-width: 500px;">
+        <div class="panel-header">
+          <span>✅</span> Qualificações
+        </div>
+        <div class="panel-body">
+          <div class="qualification-list" id="qualification-list">
+            <!-- Qualifications will be added here -->
+          </div>
+          <div class="qualification-actions">
+            <button class="btn btn-primary" id="send-qualification-btn" disabled>
+              Enviar Qualificação
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Events Log for Manual Mode -->
+      <div class="panel events-panel" style="max-width: 500px;">
+        <div class="panel-header">
+          <span>📡</span> Log de Eventos
+        </div>
+        <div class="panel-body">
+          <div class="events-log" id="events-log-manual">
+            <!-- Events will be added here -->
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- 
+    SIP Extension iFrame (Hidden)
+    Este iframe carrega a tela /extension que faz a conexão SIP.
+    Sem ele, o operador e o cliente não conseguem se ouvir durante a chamada.
+    IMPORTANTE: Este iframe NUNCA deve ser removido/fechado enquanto o operador estiver logado.
+  -->
+  <iframe 
+    id="sip-extension-frame"
+    style="position: absolute; width: 1px; height: 1px; left: -9999px; top: -9999px; opacity: 0; pointer-events: none;"
+    allow="microphone; autoplay"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+  ></iframe>
+
+  <!-- Socket.IO Client (CDN) -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  
+  <!-- App Script -->
+  <script src="app.js"></script>
+</body>
+</html>

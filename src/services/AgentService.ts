@@ -10,18 +10,18 @@ export class AgentService {
   }
 
   async login(data: AgentLoginRequest) {
-    return this.client.instance.post('/agent/login', data);
+    return this.client.instance.post('agent/login', data);
   }
 
   async logout() {
-    return this.client.instance.post('/agent/logout');
+    return this.client.instance.post('agent/logout');
   }
 
   async workBreakEnter(interval_id: number) {
-    return this.client.instance.post(`/agent/work_break/${interval_id}/enter`)
+    return this.client.instance.post(`agent/work_break/${interval_id}/enter`)
   }
   
   async workBreakExit() {
-    return this.client.instance.post('/agent/work_break/exit');
+    return this.client.instance.post('agent/work_break/exit');
   }
 }

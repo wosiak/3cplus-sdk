@@ -11,7 +11,7 @@ export class IntervalService {
 
   async getAvailableIntervals(): Promise<Interval[]> {
     const response = await this.client.instance.get<{ data: Interval[] }>(
-      '/agent/work_break_intervals?per_page=-1'
+      'agent/work_break_intervals?per_page=-1'
     );
     return response.data.data;
   }

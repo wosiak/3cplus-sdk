@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Permissions-Policy" content="microphone=(self https://*.3c.plus), autoplay=(self https://*.3c.plus)">
   <title>3C Plus - Operador</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -957,7 +958,7 @@
     <section id="login-section" class="section active">
       <div class="panel">
         <div class="panel-header">
-          <span>🔐</span> Autenticação
+          AUTENTICAÇÃO
         </div>
         <div class="panel-body">
           <form id="login-form">
@@ -987,7 +988,7 @@
     <section id="campaigns-section" class="section">
       <div class="panel">
         <div class="panel-header">
-          <span>📋</span> Selecione uma Campanha
+          Selecione uma Campanha
         </div>
         <div class="panel-body">
           <div class="loading-campaigns" id="loading-campaigns">
@@ -1117,103 +1118,6 @@
         </div>
         <div class="panel-body">
           <div class="events-log" id="events-log">
-            <!-- Events will be added here -->
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================ -->
-    <!-- SECTION 4: Manual Mode -->
-    <!-- ============================================ -->
-    <section id="manual-mode-section" class="section">
-      <div class="panel">
-        <div class="panel-body">
-          <div class="manual-header">
-            <div class="manual-header-icon">📱</div>
-            <div class="manual-header-title">Modo Manual</div>
-            <div class="manual-header-subtitle">Digite o número e clique em Ligar</div>
-          </div>
-
-          <div class="dialer">
-            <input 
-              type="tel" 
-              class="dialer-input" 
-              id="phone-input" 
-              placeholder="(00) 00000-0000"
-              maxlength="20"
-            >
-            <button class="dial-btn" id="dial-btn" onclick="handleDial()">
-              <span>📞</span> Ligar
-            </button>
-          </div>
-
-          <div class="manual-actions">
-            <button class="btn btn-secondary" onclick="handleExitManualMode()">
-              ← Sair do Modo Manual
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Call Info (shows when call is active) -->
-      <div class="panel" id="call-info-panel" style="margin-top: 2rem; display: none;">
-        <div class="panel-header">
-          <span>📞</span> Chamada Ativa
-        </div>
-        <div class="panel-body">
-          <div class="call-header">
-            <div class="call-avatar" id="call-avatar">📞</div>
-            <div class="call-meta">
-              <h2 id="call-phone">--</h2>
-              <span id="call-status">Chamada conectada</span>
-            </div>
-          </div>
-          <div class="call-details">
-            <div class="detail-card">
-              <div class="detail-label">ID da Chamada</div>
-              <div class="detail-value mono" id="call-id">--</div>
-            </div>
-            <div class="detail-card">
-              <div class="detail-label">Agente</div>
-              <div class="detail-value" id="agent-name">--</div>
-            </div>
-            <div class="detail-card">
-              <div class="detail-label">Campanha</div>
-              <div class="detail-value" id="campaign-name">--</div>
-            </div>
-            <div class="detail-card">
-              <div class="detail-label">Duração</div>
-              <div class="detail-value mono" id="call-duration">00:00</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Qualifications Panel -->
-      <div class="panel qualifications-panel" id="qualifications-panel" style="margin-top: 2rem; display: none; width: 100%; max-width: 500px;">
-        <div class="panel-header">
-          <span>✅</span> Qualificações
-        </div>
-        <div class="panel-body">
-          <div class="qualification-list" id="qualification-list">
-            <!-- Qualifications will be added here -->
-          </div>
-          <div class="qualification-actions">
-            <button class="btn btn-primary" id="send-qualification-btn" disabled>
-              Enviar Qualificação
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Events Log for Manual Mode -->
-      <div class="panel events-panel" style="max-width: 500px;">
-        <div class="panel-header">
-          <span>📡</span> Log de Eventos
-        </div>
-        <div class="panel-body">
-          <div class="events-log" id="events-log-manual">
             <!-- Events will be added here -->
           </div>
         </div>

@@ -17,8 +17,11 @@ const AppState = {
   // Autenticação
   token: null,
   domain: null,
+  extension: null,
   userName: null,
   companyName: null,
+  sipExtensionUrl: null,
+  sipLoaded: false,
   
   // Socket
   socket: null,
@@ -124,7 +127,7 @@ const AgentStatusLabels = {
  * @param {number} timeout - Timeout em ms (default 10s)
  * @returns {Promise<{event: string, data: any}>}
  */
-function waitForSocketEvent(successEvents, failureEvents = [], timeout = 10000) {
+function waitForSocketEvent(successEvents, failureEvents = [], timeout = 10000, shouldReject) {
   return new Promise((resolve, reject) => {
     if (!AppState.socket) {
       reject(new Error('Socket não conectado'));
@@ -136,28 +139,42 @@ function waitForSocketEvent(successEvents, failureEvents = [], timeout = 10000) 
     
     let resolved = false;
     
+    const successHandlers = new Map();
+    const failureHandlers = new Map();
+    
     const cleanup = () => {
-      successList.forEach(evt => AppState.socket.off(evt, successHandler));
-      failureList.forEach(evt => AppState.socket.off(evt, failureHandler));
+      successHandlers.forEach((handler, evt) => AppState.socket.off(evt, handler));
+      failureHandlers.forEach((handler, evt) => AppState.socket.off(evt, handler));
     };
     
-    const successHandler = (data) => {
+    const successHandler = (event, data) => {
       if (resolved) return;
       resolved = true;
       cleanup();
-      resolve({ event: 'success', data });
+      resolve({ event, data });
     };
     
-    const failureHandler = (data) => {
+    const failureHandler = (event, data) => {
       if (resolved) return;
+      if (typeof shouldReject === 'function' && !shouldReject(event, data)) {
+        return;
+      }
       resolved = true;
       cleanup();
       reject(new Error(data?.message || data?.reason || 'Operação falhou'));
     };
     
     // Registra listeners
-    successList.forEach(evt => AppState.socket.once(evt, successHandler));
-    failureList.forEach(evt => AppState.socket.once(evt, failureHandler));
+    successList.forEach((evt) => {
+      const handler = (data) => successHandler(evt, data);
+      successHandlers.set(evt, handler);
+      AppState.socket.on(evt, handler);
+    });
+    failureList.forEach((evt) => {
+      const handler = (data) => failureHandler(evt, data);
+      failureHandlers.set(evt, handler);
+      AppState.socket.on(evt, handler);
+    });
     
     // Timeout
     setTimeout(() => {
@@ -179,7 +196,6 @@ const DOM = {
   loginSection: document.getElementById('login-section'),
   campaignsSection: document.getElementById('campaigns-section'),
   campaignActiveSection: document.getElementById('campaign-active-section'),
-  manualModeSection: document.getElementById('manual-mode-section'),
   
   // Login
   loginForm: document.getElementById('login-form'),
@@ -216,30 +232,14 @@ const DOM = {
   callPhoneCampaign: document.getElementById('call-phone-campaign'),
   callIdCampaign: document.getElementById('call-id-campaign'),
   callDurationCampaign: document.getElementById('call-duration-campaign'),
-  callAvatarCampaign: document.getElementById('call-avatar-campaign'),
-  
-  // Call Info (old separate section)
-  callInfoPanel: document.getElementById('call-info-panel'),
-  callPhone: document.getElementById('call-phone'),
-  callId: document.getElementById('call-id'),
-  agentName: document.getElementById('agent-name'),
-  campaignName: document.getElementById('campaign-name'),
-  callDuration: document.getElementById('call-duration'),
-  callAvatar: document.getElementById('call-avatar'),
   
   // Qualifications (inline in campaign)
   qualificationsCampaign: document.getElementById('qualifications-campaign'),
   qualificationListCampaign: document.getElementById('qualification-list-campaign'),
   sendQualificationBtnCampaign: document.getElementById('send-qualification-btn-campaign'),
   
-  // Qualifications (old separate section)
-  qualificationsPanel: document.getElementById('qualifications-panel'),
-  qualificationList: document.getElementById('qualification-list'),
-  sendQualificationBtn: document.getElementById('send-qualification-btn'),
-  
   // Events
   eventsLog: document.getElementById('events-log'),
-  eventsLogManual: document.getElementById('events-log-manual'),
   
   // Toast
   toastContainer: document.getElementById('toast-container'),
@@ -309,6 +309,20 @@ function cleanPhone(phone) {
   return String(phone).replace(/\D/g, '');
 }
 
+/**
+ * Extrai o ramal do payload de eventos do socket
+ */
+function getAgentExtensionFromEvent(data) {
+  const agent = data?.agent;
+  return (
+    agent?.extension?.extension_number ??
+    agent?.extension_number ??
+    agent?.extension ??
+    agent?.ramal ??
+    null
+  );
+}
+
 // ============================================================================
 // Navegação entre Seções
 // ============================================================================
@@ -317,7 +331,7 @@ function cleanPhone(phone) {
  * Mostra uma seção específica e esconde as outras
  */
 function showSection(sectionId) {
-  const sections = ['login-section', 'campaigns-section', 'campaign-active-section', 'manual-mode-section'];
+  const sections = ['login-section', 'campaigns-section', 'campaign-active-section'];
   
   sections.forEach(id => {
     const section = document.getElementById(id);
@@ -329,15 +343,6 @@ function showSection(sectionId) {
   const targetSection = document.getElementById(sectionId);
   if (targetSection) {
     targetSection.classList.add('active');
-  }
-  
-  // Atualiza o modo visual do body
-  if (sectionId === 'manual-mode-section') {
-    document.body.classList.add('manual-mode');
-    updateStatusBadge('manual');
-  } else {
-    document.body.classList.remove('manual-mode');
-    updateStatusBadge(AppState.isConnected ? 'connected' : 'disconnected');
   }
 }
 
@@ -426,6 +431,7 @@ async function authenticate(domain, user, password) {
   AppState.token = data.data.api_token;
   AppState.userName = data.data.name;
   AppState.companyName = data.data.company.name;
+  AppState.extension = data.data.extension?.extension_number || AppState.extension;
   
   return data;
 }
@@ -522,13 +528,19 @@ async function sendQualification(callId, qualificationId) {
 function loadSipExtension() {
   const extensionUrl = `https://${AppState.domain}.3c.plus/extension?api_token=${AppState.token}`;
   
+  if (AppState.sipExtensionUrl === extensionUrl && AppState.sipLoaded) {
+    return;
+  }
+  
   console.log('📞 Carregando SIP Extension:', extensionUrl);
   addEventLog('sip-loading', 'Carregando conexão SIP...');
   
+  AppState.sipExtensionUrl = extensionUrl;
   DOM.sipExtensionFrame.src = extensionUrl;
   
   DOM.sipExtensionFrame.onload = () => {
     console.log('✅ SIP Extension carregado com sucesso!');
+    AppState.sipLoaded = true;
     addEventLog('sip-loaded', 'Conexão SIP estabelecida');
   };
   
@@ -544,6 +556,8 @@ function loadSipExtension() {
  */
 function unloadSipExtension() {
   DOM.sipExtensionFrame.src = 'about:blank';
+  AppState.sipLoaded = false;
+  AppState.sipExtensionUrl = null;
   console.log('📞 SIP Extension descarregado');
 }
 
@@ -671,11 +685,6 @@ function handleSocketEvent(event, data) {
       if (DOM.dialBtnCampaign) {
         DOM.dialBtnCampaign.disabled = false;
         DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
-      }
-      // Reabilita botão antigo (se existir)
-      if (DOM.dialBtn) {
-        DOM.dialBtn.disabled = false;
-        DOM.dialBtn.innerHTML = '<span>📞</span> Ligar';
       }
       break;
       
@@ -976,21 +985,8 @@ function handleCallFinished(data) {
 /**
  * Inicia o timer de duração da chamada
  */
-function startCallTimer() {
-  AppState.callStartTime = Date.now();
-  
-  if (AppState.callDurationInterval) {
-    clearInterval(AppState.callDurationInterval);
-  }
-  
-  AppState.callDurationInterval = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - AppState.callStartTime) / 1000);
-    if (DOM.callDuration) DOM.callDuration.textContent = formatDuration(elapsed);
-  }, 1000);
-}
-
 /**
- * Inicia o timer de duração da chamada (inline)
+ * Inicia o timer de duração da chamada
  */
 function startCallTimerInline() {
   AppState.callStartTime = Date.now();
@@ -1328,8 +1324,13 @@ async function handleSelectCampaign(campaignId, campaignName) {
     // Aguarda confirmação via socket (agent-is-idle = sucesso, agent-login-failed = falha)
     const result = await waitForSocketEvent(
       [SocketEvents.AGENT_IS_IDLE, SocketEvents.AGENT_IS_CONNECTED],
-      [SocketEvents.AGENT_LOGIN_FAILED, SocketEvents.ERROR],
-      8000
+      [SocketEvents.AGENT_LOGIN_FAILED],
+      8000,
+      (event, data) => {
+        const eventExtension = getAgentExtensionFromEvent(data);
+        if (!eventExtension || !AppState.extension) return false;
+        return String(eventExtension) === String(AppState.extension);
+      }
     );
     
     // Se chegou aqui, foi sucesso (ou timeout sem erro)
@@ -1376,144 +1377,8 @@ async function handleLeaveCampaign() {
 window.handleLeaveCampaign = handleLeaveCampaign;
 
 // ============================================================================
-// UI - Modo Manual
+// UI - Log de Eventos
 // ============================================================================
-
-/**
- * Entra em modo manual
- */
-async function handleEnterManualMode() {
-  showToast('Entrando em modo manual...', 'info');
-  
-  // Desabilita botões enquanto processa
-  const modeButtons = document.querySelectorAll('.mode-btn');
-  modeButtons.forEach(btn => btn.style.pointerEvents = 'none');
-  
-  try {
-    // Faz a requisição HTTP
-    await manualCallEnter();
-    
-    // Aguarda confirmação via socket
-    const result = await waitForSocketEvent(
-      [SocketEvents.AGENT_ENTERED_MANUAL],
-      [SocketEvents.AGENT_MANUAL_ENTER_FAILED, SocketEvents.ERROR],
-      8000
-    );
-    
-    // Se chegou aqui, foi sucesso
-    AppState.isManualMode = true;
-    showSection('manual-mode-section');
-    showToast('Modo manual ativado!', 'success');
-    addEventLog('manual-enter', 'Entrou em modo manual');
-    
-    // Foca no input de telefone
-    setTimeout(() => DOM.phoneInput.focus(), 100);
-    
-  } catch (error) {
-    console.error('Erro ao entrar em modo manual:', error);
-    showToast('Falha ao entrar em modo manual: ' + error.message, 'error');
-    AppState.isManualMode = false;
-  } finally {
-    modeButtons.forEach(btn => btn.style.pointerEvents = 'auto');
-  }
-}
-
-// Expõe globalmente
-window.handleEnterManualMode = handleEnterManualMode;
-
-/**
- * Sai do modo manual (volta para campanha)
- */
-async function handleExitManualMode() {
-  showToast('Saindo do modo manual...', 'info');
-  
-  try {
-    // Faz a requisição HTTP para sair do modo manual
-    await manualCallExit();
-    
-    AppState.isManualMode = false;
-    resetCallState();
-    showSection('campaign-active-section');
-    showToast('Saiu do modo manual', 'success');
-    addEventLog('manual-exit', 'Saiu do modo manual');
-    
-  } catch (error) {
-    console.error('Erro ao sair do modo manual:', error);
-    showToast('Erro ao sair do modo manual: ' + error.message, 'error');
-  }
-}
-
-// Expõe globalmente
-window.handleExitManualMode = handleExitManualMode;
-
-/**
- * Disca o número digitado
- */
-async function handleDial() {
-  const phone = cleanPhone(DOM.phoneInput.value);
-  
-  if (!phone || phone.length < 10) {
-    showToast('Digite um número válido', 'error');
-    DOM.phoneInput.focus();
-    return;
-  }
-  
-  DOM.dialBtn.disabled = true;
-  DOM.dialBtn.innerHTML = '<span class="spinner yellow"></span> Discando...';
-  
-  try {
-    // Faz a requisição HTTP
-    await manualCallDial(phone);
-    
-    addEventLog('manual-dial', `Discando: ${formatPhone(phone)}`);
-    showToast('Discando...', 'info');
-    
-    // Limpa o input
-    DOM.phoneInput.value = '';
-    
-    // Nota: O botão será reabilitado quando:
-    // - call-was-connected: chamada conectou (mantém desabilitado durante chamada)
-    // - call-was-finished: chamada terminou (reabilita)
-    // - call-dial-failed: falha na discagem (reabilita via handleSocketEvent)
-    
-  } catch (error) {
-    console.error('Erro ao discar:', error);
-    showToast('Erro ao discar: ' + error.message, 'error');
-    DOM.dialBtn.disabled = false;
-    DOM.dialBtn.innerHTML = '<span>📞</span> Ligar';
-  }
-}
-
-// Expõe globalmente
-window.handleDial = handleDial;
-
-// ============================================================================
-// UI - Qualificações
-// ============================================================================
-
-/**
- * Renderiza a lista de qualificações
- */
-function renderQualifications(qualifications) {
-  if (!DOM.qualificationList) return;
-  
-  DOM.qualificationList.innerHTML = qualifications.map(q => `
-    <div class="qualification-item" data-id="${q.id}" onclick="selectQualification(${q.id})">
-      <div class="qualification-radio"></div>
-      <div>
-        <div class="qualification-name">${q.name}</div>
-        <div class="qualification-id">ID: ${q.id}</div>
-      </div>
-    </div>
-  `).join('');
-  
-  AppState.selectedQualification = null;
-  if (DOM.sendQualificationBtn) DOM.sendQualificationBtn.disabled = true;
-}
-
-/**
- * Renderiza a lista de qualificações (inline na campanha)
- */
 function renderQualificationsInline(qualifications) {
   if (!DOM.qualificationListCampaign) return;
   
@@ -1563,78 +1428,6 @@ function selectQualificationInline(id) {
 // Expõe globalmente
 window.selectQualificationInline = selectQualificationInline;
 
-/**
- * Seleciona uma qualificação
- */
-function selectQualification(id) {
-  AppState.selectedQualification = id;
-  
-  document.querySelectorAll('.qualification-item').forEach(item => {
-    item.classList.remove('selected');
-  });
-  
-  const selectedItem = document.querySelector(`.qualification-item[data-id="${id}"]`);
-  if (selectedItem) {
-    selectedItem.classList.add('selected');
-  }
-  
-  DOM.sendQualificationBtn.disabled = false;
-}
-
-// Expõe globalmente
-window.selectQualification = selectQualification;
-
-/**
- * Envia a qualificação selecionada
- */
-async function handleSendQualification() {
-  if (!AppState.selectedQualification || !AppState.currentCall?.id) {
-    showToast('Selecione uma qualificação', 'error');
-    return;
-  }
-  
-  DOM.sendQualificationBtn.disabled = true;
-  DOM.sendQualificationBtn.innerHTML = '<span class="spinner"></span> Enviando...';
-  
-  try {
-    await sendQualification(AppState.currentCall.id, AppState.selectedQualification);
-    
-    showToast('Qualificação enviada com sucesso!', 'success');
-    addEventLog('qualification-sent', `Qualificação ID: ${AppState.selectedQualification}`);
-    
-    // Reseta o estado da chamada
-    resetCallState();
-    
-  } catch (error) {
-    console.error('Erro ao enviar qualificação:', error);
-    showToast('Erro ao enviar qualificação: ' + error.message, 'error');
-    DOM.sendQualificationBtn.disabled = false;
-    DOM.sendQualificationBtn.textContent = 'Enviar Qualificação';
-  }
-}
-
-/**
- * Reseta o estado da chamada
- */
-function resetCallState() {
-  stopCallTimer();
-  
-  AppState.currentCall = null;
-  AppState.qualifications = [];
-  AppState.selectedQualification = null;
-  
-  DOM.callInfoPanel.style.display = 'none';
-  DOM.qualificationsPanel.style.display = 'none';
-  DOM.callDuration.textContent = '00:00';
-  DOM.qualificationList.innerHTML = '';
-  DOM.sendQualificationBtn.disabled = true;
-  DOM.sendQualificationBtn.textContent = 'Enviar Qualificação';
-  
-  // Reabilita o botão de ligar
-  DOM.dialBtn.disabled = false;
-  DOM.dialBtn.innerHTML = '<span>📞</span> Ligar';
-}
-
 // ============================================================================
 // UI - Log de Eventos
 // ============================================================================
@@ -1651,18 +1444,11 @@ function addEventLog(eventType, data) {
     <span class="event-data">${data || ''}</span>
   `;
   
-  // Adiciona em ambos os logs
+  // Adiciona no log
   if (DOM.eventsLog) {
-    DOM.eventsLog.insertBefore(eventItem.cloneNode(true), DOM.eventsLog.firstChild);
+    DOM.eventsLog.insertBefore(eventItem, DOM.eventsLog.firstChild);
     while (DOM.eventsLog.children.length > 50) {
       DOM.eventsLog.removeChild(DOM.eventsLog.lastChild);
-    }
-  }
-  
-  if (DOM.eventsLogManual) {
-    DOM.eventsLogManual.insertBefore(eventItem.cloneNode(true), DOM.eventsLogManual.firstChild);
-    while (DOM.eventsLogManual.children.length > 50) {
-      DOM.eventsLogManual.removeChild(DOM.eventsLogManual.lastChild);
     }
   }
 }
@@ -1713,6 +1499,7 @@ async function handleLogin(e) {
   DOM.loginBtn.innerHTML = '<span class="spinner"></span> Conectando...';
   
   try {
+    AppState.extension = extension;
     await authenticate(domain, extension, password);
     
     showToast('Autenticação realizada com sucesso!', 'success');
@@ -1786,7 +1573,6 @@ async function handleLogout() {
   
   // Limpa eventos
   if (DOM.eventsLog) DOM.eventsLog.innerHTML = '';
-  if (DOM.eventsLogManual) DOM.eventsLogManual.innerHTML = '';
   
   // Volta para login
   showSection('login-section');
@@ -1804,21 +1590,6 @@ window.handleLogout = handleLogout;
 function init() {
   // Event listeners
   DOM.loginForm.addEventListener('submit', handleLogin);
-  if (DOM.sendQualificationBtn) {
-    DOM.sendQualificationBtn.addEventListener('click', handleSendQualification);
-  }
-  
-  // Enter no input de telefone (old section)
-  if (DOM.phoneInput) {
-    DOM.phoneInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        handleDial();
-      }
-    });
-    
-    // Máscara simples para o telefone
-    DOM.phoneInput.addEventListener('input', applyPhoneMask);
-  }
   
   // Enter no input de telefone (inline na campanha)
   if (DOM.phoneInputCampaign) {

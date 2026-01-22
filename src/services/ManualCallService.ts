@@ -10,23 +10,23 @@ export class ManualCallService {
   }
 
   async manualCallEnter() {
-    return this.client.instance.post('/agent/manual_call/enter');
+    return this.client.instance.post('agent/manual_call/enter');
   }
 
   async manualCallDial(data: ManualCallDial): Promise<ManualCallDialResponse> {
     const response = await this.client.instance.post<ManualCallDialResponse>(
-      '/agent/manual_call/dial',
+      'agent/manual_call/dial',
       data
     );
     return response.data;
   }
 
   async manualCallHangup(callId: string) {
-    return this.client.instance.post(`/agent/call/${callId}/hangup`);
+    return this.client.instance.post(`agent/call/${callId}/hangup`);
   }
 
   async manualCallExit() {
-    return this.client.instance.post('/agent/manual_call/exit');
+    return this.client.instance.post('agent/manual_call/exit');
   }
 
 }

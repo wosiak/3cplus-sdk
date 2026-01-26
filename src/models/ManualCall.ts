@@ -13,3 +13,12 @@ export interface ManualCallDialResponse {
     telephony_id: string;
   };
 }
+
+export interface ManualCallQualify {
+  qualification_id: number;
+}
+
+export interface ManualCallQualifyResponse {
+  success: boolean;
+  message?: string;
+}

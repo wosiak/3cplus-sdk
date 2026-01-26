@@ -22,23 +22,25 @@ const AppState = {
   companyName: null,
   sipExtensionUrl: null,
   sipLoaded: false,
+  sipRegistered: false,
   
   // Socket
   socket: null,
   isConnected: false,
   
+  // Sistema pronto para operar (socket + SIP)
+  systemReady: false,
+  
   // Campanhas
   campaigns: [],
   currentCampaign: null,
-  
-  // Status do Agente
-  agentStatus: null,
   
   // Modo
   isManualMode: false,
   
   // Chamada atual
   currentCall: null,
+  lastCallId: null, // Guarda o último call.id para qualificação pós-chamada
   callStartTime: null,
   callDurationInterval: null,
   
@@ -88,33 +90,17 @@ const SocketEvents = {
 };
 
 // ============================================================================
-// Status do Agente (agent.status)
+// Status do Agente (valores numéricos retornados pela API)
 // ============================================================================
-
-const AgentStatus = {
-  OFFLINE: 0,                    // O Agente está Offline
-  IDLE: 1,                       // O Agente está ocioso
-  ON_CALL: 2,                    // O Agente está em uma chamada
-  ACW: 3,                        // O Agente está em pós atendimento
-  ON_MANUAL_CALL: 4,             // O Agente está realizando uma chamada manual
-  ON_MANUAL_CALL_CONNECTED: 5,   // O Agente está em uma chamada manual conectada
-  ON_WORK_BREAK: 6,              // O Agente está em intervalo
-  ON_MANUAL_CALL_ACW: 21,        // O Agente está em pós atendimento de chamada manual
-  MANUAL_CALL_CONNECTED: 22      // O Agente está em uma chamada manual pós atendimento conectada
-};
-
-// Descrições dos status para exibição
-const AgentStatusLabels = {
-  [AgentStatus.OFFLINE]: 'Offline',
-  [AgentStatus.IDLE]: 'Ocioso',
-  [AgentStatus.ON_CALL]: 'Em chamada',
-  [AgentStatus.ACW]: 'Pós atendimento',
-  [AgentStatus.ON_MANUAL_CALL]: 'Chamada manual',
-  [AgentStatus.ON_MANUAL_CALL_CONNECTED]: 'Chamada manual conectada',
-  [AgentStatus.ON_WORK_BREAK]: 'Em intervalo',
-  [AgentStatus.ON_MANUAL_CALL_ACW]: 'Pós atendimento manual',
-  [AgentStatus.MANUAL_CALL_CONNECTED]: 'Chamada manual conectada'
-};
+// Referência: o campo agent.status nos eventos do socket pode ter estes valores:
+// 0 = OFFLINE
+// 1 = IDLE (ocioso, pronto para receber chamadas)
+// 2 = ON_CALL (em chamada automática)
+// 3 = ACW (pós-atendimento)
+// 4 = ON_MANUAL_CALL (em modo manual / discando manualmente)
+// 5 = ON_MANUAL_CALL_CONNECTED (chamada manual conectada)
+// 6 = ON_WORK_BREAK (em intervalo)
+// 21 = ON_MANUAL_CALL_ACW (pós-atendimento de chamada manual)
 
 // ============================================================================
 // Sistema de Aguardar Evento (Promise-based)
@@ -506,13 +492,14 @@ async function callHangup(callId) {
 }
 
 /**
- * Envia qualificação para a chamada atual
+ * Envia qualificação para a chamada manual atual
  */
 async function sendQualification(callId, qualificationId) {
-  return await apiRequest('calls/qualify', {
+  const endpoint = `agent/manual_call/${callId}/qualify`;
+  
+  return await apiRequest(endpoint, {
     method: 'POST',
     body: JSON.stringify({
-      call_id: callId,
       qualification_id: qualificationId
     })
   });
@@ -532,16 +519,20 @@ function loadSipExtension() {
     return;
   }
   
-  console.log('📞 Carregando SIP Extension:', extensionUrl);
   addEventLog('sip-loading', 'Carregando conexão SIP...');
   
   AppState.sipExtensionUrl = extensionUrl;
   DOM.sipExtensionFrame.src = extensionUrl;
   
   DOM.sipExtensionFrame.onload = () => {
-    console.log('✅ SIP Extension carregado com sucesso!');
     AppState.sipLoaded = true;
     addEventLog('sip-loaded', 'Conexão SIP estabelecida');
+    
+    // Aguarda registro SIP (será atualizado via postMessage ou fallback)
+    showToast('Aguardando registro SIP...', 'info');
+    
+    // Inicia timer de fallback
+    startSipFallbackTimer();
   };
   
   DOM.sipExtensionFrame.onerror = () => {
@@ -552,13 +543,97 @@ function loadSipExtension() {
 }
 
 /**
+ * Listener para mensagens do iframe SIP
+ * Captura eventos como "registered" para saber quando está pronto
+ */
+window.addEventListener('message', (event) => {
+  
+  // Só aceita mensagens do domínio 3c.plus ou fluxoti.com
+  if (!event.origin.includes('3c.plus') && !event.origin.includes('fluxoti.com')) {
+    return;
+  }
+  
+  const data = event.data;
+  
+  // Detecta registro SIP bem-sucedido (aceita vários formatos)
+  if (typeof data === 'string' && data.toLowerCase().includes('registered')) {
+    AppState.sipRegistered = true;
+    checkSystemReady();
+  } else if (typeof data === 'object' && data?.status === 'registered') {
+    AppState.sipRegistered = true;
+    checkSystemReady();
+  }
+});
+
+// Fallback: se não receber postMessage, marca como registrado após 5 segundos
+// (tempo suficiente para SIP registrar, baseado no console log)
+let sipFallbackTimeout = null;
+
+function startSipFallbackTimer() {
+  if (sipFallbackTimeout) clearTimeout(sipFallbackTimeout);
+  
+  sipFallbackTimeout = setTimeout(() => {
+    if (!AppState.sipRegistered && AppState.sipLoaded) {
+      AppState.sipRegistered = true;
+      checkSystemReady();
+    }
+  }, 5000); // 5 segundos após carregar
+}
+
+/**
+ * Verifica se o sistema está pronto (Socket + SIP) e libera a UI
+ */
+function checkSystemReady() {
+  const wasReady = AppState.systemReady;
+  AppState.systemReady = AppState.isConnected && AppState.sipRegistered;
+  
+  // Atualiza indicadores visuais
+  const statusDiv = document.getElementById('system-ready-status');
+  const wsStatus = document.getElementById('ws-status');
+  const sipStatus = document.getElementById('sip-status');
+  
+  if (wsStatus) wsStatus.textContent = AppState.isConnected ? '✓ Conectado' : 'Conectando...';
+  if (sipStatus) sipStatus.textContent = AppState.sipRegistered ? '✓ Registrado' : 'Aguardando...';
+  
+  // Se acabou de ficar pronto, notifica o usuário
+  if (!wasReady && AppState.systemReady) {
+    showToast('Sistema pronto! Você pode selecionar uma campanha.', 'success');
+    addEventLog('system-ready', 'Socket + SIP prontos');
+    
+    // Esconde o aviso e habilita as campanhas
+    if (statusDiv) statusDiv.style.display = 'none';
+    enableCampaignSelection();
+  } else if (!AppState.systemReady) {
+    // Ainda não está pronto, mostra o aviso
+    if (statusDiv) statusDiv.style.display = 'block';
+  }
+}
+
+/**
+ * Habilita ou desabilita a seleção de campanhas
+ */
+function enableCampaignSelection() {
+  const campaignItems = document.querySelectorAll('.campaign-item');
+  campaignItems.forEach(item => {
+    if (AppState.systemReady) {
+      item.style.pointerEvents = 'auto';
+      item.style.opacity = '1';
+    } else {
+      item.style.pointerEvents = 'none';
+      item.style.opacity = '0.5';
+    }
+  });
+}
+
+/**
  * Descarrega o iframe do /extension
  */
 function unloadSipExtension() {
   DOM.sipExtensionFrame.src = 'about:blank';
   AppState.sipLoaded = false;
+  AppState.sipRegistered = false;
   AppState.sipExtensionUrl = null;
-  console.log('📞 SIP Extension descarregado');
+  AppState.systemReady = false;
 }
 
 // ============================================================================
@@ -588,15 +663,16 @@ function setupSocketListeners() {
   const socket = AppState.socket;
   
   socket.on('connect', () => {
-    console.log('✅ Conectado ao WebSocket!');
     AppState.isConnected = true;
     updateStatusBadge(AppState.isManualMode ? 'manual' : 'connected');
     addEventLog('connect', 'Conectado ao servidor');
-    showToast('Conectado ao servidor 3C Plus!', 'success');
+    showToast('WebSocket conectado!', 'success');
+    
+    // Verifica se o sistema está pronto
+    checkSystemReady();
   });
   
   socket.on('disconnect', (reason) => {
-    console.log('❌ Desconectado do WebSocket:', reason);
     AppState.isConnected = false;
     updateStatusBadge('disconnected');
     addEventLog('disconnect', `Desconectado: ${reason}`);
@@ -610,7 +686,6 @@ function setupSocketListeners() {
   });
   
   socket.onAny((event, data) => {
-    console.log(`📡 Evento recebido: ${event}`, data);
     handleSocketEvent(event, data);
   });
 }
@@ -636,25 +711,22 @@ function handleSocketEvent(event, data) {
       break;
       
     case SocketEvents.AGENT_IS_IDLE:
-      // Verifica o status real do agente
-      handleAgentStatusChange(data);
+      // Agente está pronto (idle) - restaura UI
+      handleAgentIdle(data);
       break;
       
     case SocketEvents.AGENT_ENTERED_MANUAL:
       // Confirmação de entrada no modo manual - MUDA PARA TELA AMARELA
-      console.log('✅ Entrou em modo manual - confirmado');
       handleAgentEnteredManual();
       break;
       
     case SocketEvents.MANUAL_CALL_WAS_ANSWERED:
       // Chamada manual foi atendida - MOSTRA QUALIFICAÇÕES
-      console.log('✅ Chamada manual atendida - mostrando qualificações');
       handleManualCallAnswered(data);
       break;
       
     case SocketEvents.CALL_HISTORY_WAS_CREATED:
       // Histórico de chamada criado - MOSTRA QUALIFICAÇÕES (se não qualificada)
-      console.log('✅ Histórico de chamada criado');
       handleCallHistoryCreated(data);
       break;
       
@@ -706,104 +778,46 @@ function handleSocketEvent(event, data) {
 }
 
 /**
- * Processa mudança de status do agente
- * Baseado no campo agent.status
+ * Processa evento de agente idle (pronto)
+ * Restaura UI para estado inicial
  */
-function handleAgentStatusChange(data) {
-  const agentStatus = data?.agent?.status;
-  const statusLabel = AgentStatusLabels[agentStatus] || `Status ${agentStatus}`;
-  
-  console.log(`📊 Status do agente: ${agentStatus} (${statusLabel})`);
-  
-  // Atualiza o estado baseado no status
-  switch (agentStatus) {
-    case AgentStatus.IDLE:
-      // Agente ocioso - pronto para receber chamadas
-      console.log('✅ Agente está ocioso - pronto para chamadas');
-      AppState.isManualMode = false;
-      
-      // Restaura a UI para o estado inicial (aguardando chamadas)
-      if (DOM.campaignStatusInfo) {
-        DOM.campaignStatusInfo.style.display = 'block';
-      }
-      if (DOM.btnToggleManual) {
-        DOM.btnToggleManual.style.display = 'flex';
-        DOM.btnToggleManual.classList.remove('active');
-      }
-      if (DOM.manualDialerSection) {
-        DOM.manualDialerSection.style.display = 'none';
-      }
-      if (DOM.callInfoCampaign) {
-        DOM.callInfoCampaign.style.display = 'none';
-      }
-      if (DOM.qualificationsCampaign) {
-        DOM.qualificationsCampaign.style.display = 'none';
-      }
-      break;
-      
-    case AgentStatus.ON_MANUAL_CALL:
-      // Agente está realizando uma chamada manual (discando)
-      console.log('📱 Agente em chamada manual (discando)');
-      handleAgentEnteredManual();
-      break;
-      
-    case AgentStatus.ON_MANUAL_CALL_CONNECTED:
-    case AgentStatus.MANUAL_CALL_CONNECTED:
-      // Agente está em chamada manual conectada
-      console.log('📞 Agente em chamada manual conectada');
-      AppState.isManualMode = true;
-      // Mantém o modo manual ativo
-      if (DOM.manualDialerSection) {
-        DOM.manualDialerSection.style.display = 'block';
-      }
-      if (DOM.btnToggleManual) {
-        DOM.btnToggleManual.classList.add('active');
-      }
-      break;
-      
-    case AgentStatus.ON_CALL:
-      // Agente está em chamada (automática)
-      console.log('📞 Agente em chamada automática');
-      break;
-      
-    case AgentStatus.ACW:
-    case AgentStatus.ON_MANUAL_CALL_ACW:
-      // Agente está em pós atendimento
-      console.log('📝 Agente em pós atendimento');
-      // Mantém qualificações visíveis se houver
-      break;
-      
-    case AgentStatus.ON_WORK_BREAK:
-      // Agente está em intervalo
-      console.log('☕ Agente em intervalo');
-      showToast('Em intervalo', 'info');
-      break;
-      
-    case AgentStatus.OFFLINE:
-      // Agente offline
-      console.log('🔴 Agente offline');
-      break;
-      
-    default:
-      console.log(`❓ Status desconhecido: ${agentStatus}`);
-  }
-  
-  // Atualiza o status na UI (se houver elemento)
-  updateAgentStatusUI(agentStatus, statusLabel);
-}
-
 /**
- * Atualiza a UI com o status do agente
+ * Processa evento agent-is-idle (atualização de status do agente)
+ * IMPORTANTE: O nome do evento engana - não significa necessariamente "idle"!
+ * Precisamos verificar o agent.status numérico:
+ * - 1 = IDLE (ocioso, pronto para chamadas)
+ * - 4 = ON_MANUAL_CALL (em chamada manual)
  */
-function updateAgentStatusUI(status, label) {
-  // Pode ser usado para mostrar o status em algum lugar da interface
-  const statusElement = document.getElementById('agent-status-label');
-  if (statusElement) {
-    statusElement.textContent = label;
-  }
+function handleAgentIdle(data) {
+  const agentStatus = data?.agent?.status;
   
-  // Armazena o status atual
-  AppState.agentStatus = status;
+  // STATUS_IDLE = 1: Agente realmente está ocioso
+  if (agentStatus === 1) {
+    
+    // Restaura UI para estado inicial
+    AppState.isManualMode = false;
+    
+    if (DOM.campaignStatusInfo) {
+      DOM.campaignStatusInfo.style.display = 'block';
+    }
+    if (DOM.btnToggleManual) {
+      DOM.btnToggleManual.style.display = 'flex';
+      DOM.btnToggleManual.classList.remove('active');
+    }
+    if (DOM.manualDialerSection) {
+      DOM.manualDialerSection.style.display = 'none';
+    }
+    if (DOM.callInfoCampaign) {
+      DOM.callInfoCampaign.style.display = 'none';
+    }
+    if (DOM.qualificationsCampaign) {
+      DOM.qualificationsCampaign.style.display = 'none';
+    }
+  }
+  // STATUS_ON_MANUAL_CALL = 4: Agente ainda está em modo manual
+  else if (agentStatus === 4) {
+    // Não faz nada, mantém o estado atual
+  }
 }
 
 /**
@@ -844,24 +858,23 @@ function handleAgentEnteredManual() {
  * Mostra as qualificações disponíveis
  */
 function handleManualCallAnswered(data) {
-  console.log('📞 manual-call-was-answered data:', data);
   
   // Tenta buscar qualificações de diferentes lugares no payload
   const qualification = data?.qualification || data;
   const qualifications = qualification?.qualifications || data?.qualifications || [];
   
-  console.log('📋 Qualificações encontradas:', qualifications);
   
   // Armazena qualificações
   if (qualifications.length > 0) {
     AppState.qualifications = qualifications;
   }
   
-  // Atualiza info da chamada se disponível
+  // Atualiza info da chamada se disponível, mas PRESERVA o ID original do /dial
   if (data?.call) {
     AppState.currentCall = {
       ...AppState.currentCall,
-      id: data.call.id || AppState.currentCall?.id,
+      // Mantém o ID original (do /dial), não sobrescreve!
+      id: AppState.currentCall?.id || data.call.id,
       phone: data.call.phone || data.call.number || AppState.currentCall?.phone
     };
   }
@@ -893,7 +906,6 @@ function handleCallHistoryCreated(data) {
   
   // Verifica se já foi qualificada
   if (call?.qualified || call?.qualification_id) {
-    console.log('Chamada já foi qualificada, ignorando...');
     return;
   }
   
@@ -911,16 +923,22 @@ function handleCallHistoryCreated(data) {
  * Processa evento de chamada conectada
  */
 function handleCallConnected(data) {
-  console.log('📞 call-was-connected data:', data);
   
   const { call, agent, qualification, campaign } = data || {};
   
+  // Preserva o ID original se já tiver (veio do /dial)
+  // Senão, usa o que veio no evento
+  const callId = AppState.currentCall?.id || call?.id;
+  
   AppState.currentCall = {
-    id: call?.id,
-    phone: call?.phone || call?.number,
-    agentName: agent?.name,
+    id: callId,
+    phone: call?.phone || call?.number || AppState.currentCall?.phone,
+    agentName: agent?.name || AppState.currentCall?.agentName,
     campaignName: campaign?.name || AppState.currentCampaign?.name || 'N/A'
   };
+  
+  // Guarda o último call.id para qualificação pós-chamada
+  AppState.lastCallId = callId;
   
   // Esconde elementos que não são necessários durante a chamada
   if (DOM.campaignStatusInfo) {
@@ -949,6 +967,13 @@ function handleCallConnected(data) {
     DOM.callInfoCampaign.style.display = 'block';
   }
   
+  // Reseta o botão de desligar para o estado inicial
+  const hangupBtn = document.getElementById('hangup-btn');
+  if (hangupBtn) {
+    hangupBtn.disabled = false;
+    hangupBtn.innerHTML = '📞 Desligar';
+  }
+  
   // IMPORTANTE: NÃO mostra qualificações aqui!
   // As qualificações só aparecem após:
   // - manual-call-was-answered (chamada manual atendida)
@@ -958,7 +983,6 @@ function handleCallConnected(data) {
   const qualifications = qualification?.qualifications || [];
   if (qualifications.length > 0) {
     AppState.qualifications = qualifications;
-    console.log('📋 Qualificações armazenadas:', qualifications.length);
   }
   
   showToast('Chamada conectada!', 'success');
@@ -970,15 +994,37 @@ function handleCallConnected(data) {
 function handleCallFinished(data) {
   stopCallTimer();
   
-  // Mantém as qualificações visíveis para permitir qualificação pós-chamada
-  if (AppState.currentCall) {
-    showToast('Chamada finalizada. Selecione uma qualificação.', 'warning');
+  // Esconde o painel de informações da chamada (inclui botão desligar)
+  if (DOM.callInfoCampaign) {
+    DOM.callInfoCampaign.style.display = 'none';
   }
   
-  // Reabilita o botão de ligar (inline)
-  if (DOM.dialBtnCampaign) {
-    DOM.dialBtnCampaign.disabled = false;
-    DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
+  // Limpa o estado da chamada
+  AppState.currentCall = null;
+  
+  // Se já qualificou (qualifications vazias), volta para o modo correto
+  if (AppState.qualifications.length === 0) {
+    // Já qualificou, restaura o modo manual se estiver ativo
+    if (AppState.isManualMode) {
+      if (DOM.manualDialerSection) DOM.manualDialerSection.style.display = 'block';
+      if (DOM.dialBtnCampaign) {
+        DOM.dialBtnCampaign.disabled = false;
+        DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
+      }
+      setTimeout(() => {
+        if (DOM.phoneInputCampaign) DOM.phoneInputCampaign.focus();
+      }, 100);
+    }
+    showToast('Chamada finalizada', 'info');
+  } else {
+    // Ainda não qualificou, mantém as qualificações visíveis
+    showToast('Chamada finalizada. Selecione uma qualificação.', 'warning');
+    
+    // Reabilita o botão de ligar
+    if (DOM.dialBtnCampaign) {
+      DOM.dialBtnCampaign.disabled = false;
+      DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
+    }
   }
 }
 
@@ -1057,7 +1103,6 @@ function renderCampaigns(campaigns) {
   DOM.campaignList.innerHTML = campaigns.map(campaign => `
     <div class="campaign-item" onclick="handleSelectCampaign(${campaign.id}, '${campaign.name.replace(/'/g, "\\'")}')">
       <div class="campaign-info">
-        <div class="campaign-icon">📢</div>
         <div>
           <div class="campaign-name">${campaign.name}</div>
           <div class="campaign-id">ID: ${campaign.id}</div>
@@ -1066,6 +1111,9 @@ function renderCampaigns(campaigns) {
       <div class="campaign-arrow">→</div>
     </div>
   `).join('');
+  
+  // Aplica o estado de habilitado/desabilitado baseado no sistema
+  enableCampaignSelection();
 }
 
 // Expõe globalmente
@@ -1178,7 +1226,18 @@ async function handleDialFromCampaign() {
   dialBtn.innerHTML = '<span class="spinner"></span> Discando...';
   
   try {
-    await manualCallDial(phone);
+    const response = await manualCallDial(phone);
+    
+    // Guarda o call.id retornado pela API para usar na qualificação
+    if (response?.call?.id) {
+      AppState.currentCall = {
+        id: response.call.id,
+        phone: response.call.number || phone,
+        agentName: response.agent?.name
+      };
+      // Guarda também o último call.id para qualificação pós-chamada
+      AppState.lastCallId = response.call.id;
+    }
     
     addEventLog('manual-dial', `Discando: ${formatPhone(phone)}`);
     showToast('Discando...', 'info');
@@ -1236,8 +1295,16 @@ window.handleHangup = handleHangup;
  * Envia qualificação do modo inline
  */
 async function handleSendQualificationFromCampaign() {
-  if (!AppState.selectedQualification || !AppState.currentCall?.id) {
+  if (!AppState.selectedQualification) {
     showToast('Selecione uma qualificação', 'error');
+    return;
+  }
+  
+  // Usa currentCall.id se estiver ativo, senão usa lastCallId (chamada já finalizada)
+  const callId = AppState.currentCall?.id || AppState.lastCallId;
+  
+  if (!callId) {
+    showToast('ID da chamada não encontrado', 'error');
     return;
   }
   
@@ -1248,13 +1315,43 @@ async function handleSendQualificationFromCampaign() {
   }
   
   try {
-    await sendQualification(AppState.currentCall.id, AppState.selectedQualification);
+    await sendQualification(callId, AppState.selectedQualification);
     
     showToast('Qualificação enviada com sucesso!', 'success');
     addEventLog('qualification-sent', `Qualificação ID: ${AppState.selectedQualification}`);
     
-    // Reseta o estado da chamada
-    resetCallStateInline();
+    // Limpa apenas as qualificações (mantém a chamada ativa)
+    AppState.qualifications = [];
+    AppState.selectedQualification = null;
+    
+    // Se a chamada já foi encerrada (currentCall é null), limpa o lastCallId também
+    if (!AppState.currentCall) {
+      AppState.lastCallId = null;
+      
+      // Restaura o modo manual se estiver ativo
+      if (AppState.isManualMode) {
+        if (DOM.manualDialerSection) DOM.manualDialerSection.style.display = 'block';
+        if (DOM.btnToggleManual) DOM.btnToggleManual.style.display = 'flex';
+        if (DOM.dialBtnCampaign) {
+          DOM.dialBtnCampaign.disabled = false;
+          DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
+        }
+        setTimeout(() => {
+          if (DOM.phoneInputCampaign) DOM.phoneInputCampaign.focus();
+        }, 100);
+      }
+    }
+    
+    // Esconde apenas o painel de qualificações
+    if (DOM.qualificationsCampaign) DOM.qualificationsCampaign.style.display = 'none';
+    if (DOM.qualificationListCampaign) DOM.qualificationListCampaign.innerHTML = '';
+    if (DOM.sendQualificationBtnCampaign) {
+      DOM.sendQualificationBtnCampaign.disabled = true;
+      DOM.sendQualificationBtnCampaign.textContent = 'Enviar Qualificação';
+    }
+    
+    // MANTÉM o painel de chamada visível (com botão desligar)
+    // A chamada só será limpa quando receber o evento call-was-finished
     
   } catch (error) {
     console.error('Erro ao enviar qualificação:', error);
@@ -1312,6 +1409,12 @@ function resetCallStateInline() {
  * Seleciona uma campanha e faz login do agente
  */
 async function handleSelectCampaign(campaignId, campaignName) {
+  // Verifica se o sistema está pronto (Socket + SIP)
+  if (!AppState.systemReady) {
+    showToast('Aguarde o sistema ficar pronto (WebSocket + SIP)', 'warning');
+    return;
+  }
+  
   showToast('Entrando na campanha...', 'info');
   
   // Desabilita cliques enquanto processa
@@ -1602,8 +1705,6 @@ function init() {
     // Máscara simples para o telefone
     DOM.phoneInputCampaign.addEventListener('input', applyPhoneMask);
   }
-  
-  console.log('🚀 3C Plus Operador inicializado!');
 }
 
 /**

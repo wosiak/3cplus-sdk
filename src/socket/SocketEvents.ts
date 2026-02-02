@@ -15,7 +15,8 @@ export const SocketEvents = {
     // Calls
     CALL_WAS_CONNECTED: 'call-was-connected',
     CALL_WAS_FINISHED: 'call-was-finished',
-    CALL_DIAL_FAILED: 'call-dial-failed',
+    CALL_WAS_NOT_ANSWERED: 'call-was-not-answered',
+    CALL_WAS_FAILED: 'call-was-failed',
     
     // Qualification
     MANUAL_CALL_WAS_ANSWERED: 'manual-call-was-answered',

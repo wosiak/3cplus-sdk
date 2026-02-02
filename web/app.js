@@ -74,7 +74,8 @@ const SocketEvents = {
   // Chamadas
   CALL_WAS_CONNECTED: 'call-was-connected',
   CALL_WAS_FINISHED: 'call-was-finished',
-  CALL_DIAL_FAILED: 'call-dial-failed',
+  CALL_WAS_NOT_ANSWERED: 'call-was-not-answered',
+  CALL_WAS_FAILED: 'call-was-failed',
   
   // Chamadas Manuais - Qualificação
   MANUAL_CALL_WAS_ANSWERED: 'manual-call-was-answered',
@@ -706,6 +707,14 @@ function handleSocketEvent(event, data) {
       handleCallFinished(data);
       break;
       
+    case SocketEvents.CALL_WAS_NOT_ANSWERED:
+      handleCallNotAnswered(data);
+      break;
+      
+    case SocketEvents.CALL_WAS_FAILED:
+      handleCallFailed(data);
+      break;
+      
     case SocketEvents.AGENT_IS_CONNECTED:
       showToast('Agente conectado', 'success');
       break;
@@ -749,15 +758,6 @@ function handleSocketEvent(event, data) {
     case SocketEvents.AGENT_MANUAL_ENTER_FAILED:
       showToast('Falha ao entrar no modo manual: ' + (data?.message || data?.reason || 'Erro desconhecido'), 'error');
       AppState.isManualMode = false;
-      break;
-      
-    case SocketEvents.CALL_DIAL_FAILED:
-      showToast('Falha na discagem: ' + (data?.message || data?.reason || 'Erro desconhecido'), 'error');
-      // Reabilita botão inline
-      if (DOM.dialBtnCampaign) {
-        DOM.dialBtnCampaign.disabled = false;
-        DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
-      }
       break;
       
     case SocketEvents.AGENT_WAS_LOGGED_OUT:
@@ -962,7 +962,7 @@ function handleCallConnected(data) {
   // Inicia o timer de duração
   startCallTimerInline();
   
-  // Exibe o painel de chamada inline
+  // Exibe o painel de chamada
   if (DOM.callInfoCampaign) {
     DOM.callInfoCampaign.style.display = 'block';
   }
@@ -973,11 +973,6 @@ function handleCallConnected(data) {
     hangupBtn.disabled = false;
     hangupBtn.innerHTML = '📞 Desligar';
   }
-  
-  // IMPORTANTE: NÃO mostra qualificações aqui!
-  // As qualificações só aparecem após:
-  // - manual-call-was-answered (chamada manual atendida)
-  // - call-history-was-created (histórico criado, se não qualificada)
   
   // Armazena qualificações para uso posterior
   const qualifications = qualification?.qualifications || [];
@@ -1025,6 +1020,84 @@ function handleCallFinished(data) {
       DOM.dialBtnCampaign.disabled = false;
       DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
     }
+  }
+}
+
+/**
+ * Processa evento quando chamada não é atendida (não conectou)
+ */
+function handleCallNotAnswered(data) {
+  stopCallTimer();
+  
+  // Esconde o botão de desligar (não há chamada ativa)
+  if (DOM.callInfoCampaign) {
+    DOM.callInfoCampaign.style.display = 'none';
+  }
+  
+  // Esconde o discador manual
+  if (DOM.manualDialerSection) {
+    DOM.manualDialerSection.style.display = 'none';
+  }
+  
+  // Limpa currentCall, mas mantém lastCallId para qualificação
+  AppState.currentCall = null;
+  
+  // Usa as qualificações que já foram armazenadas no call-was-connected
+  if (AppState.qualifications && AppState.qualifications.length > 0) {
+    renderQualificationsInline(AppState.qualifications);
+    showToast('Chamada não atendida. Selecione uma qualificação.', 'warning');
+  } else {
+    // Se não tiver qualificações armazenadas, volta para o discador
+    if (AppState.isManualMode) {
+      if (DOM.manualDialerSection) DOM.manualDialerSection.style.display = 'block';
+      if (DOM.dialBtnCampaign) {
+        DOM.dialBtnCampaign.disabled = false;
+        DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
+      }
+      setTimeout(() => {
+        if (DOM.phoneInputCampaign) DOM.phoneInputCampaign.focus();
+      }, 100);
+    }
+    showToast('Chamada não atendida', 'info');
+  }
+}
+
+/**
+ * Processa evento quando chamada falha (erro de conexão)
+ */
+function handleCallFailed(data) {
+  stopCallTimer();
+  
+  // Esconde o botão de desligar (não há chamada ativa)
+  if (DOM.callInfoCampaign) {
+    DOM.callInfoCampaign.style.display = 'none';
+  }
+  
+  // Esconde o discador manual
+  if (DOM.manualDialerSection) {
+    DOM.manualDialerSection.style.display = 'none';
+  }
+  
+  // Limpa currentCall, mas mantém lastCallId para qualificação
+  AppState.currentCall = null;
+  
+  // Usa as qualificações que já foram armazenadas no call-was-connected
+  if (AppState.qualifications && AppState.qualifications.length > 0) {
+    renderQualificationsInline(AppState.qualifications);
+    showToast('Chamada falhou. Selecione uma qualificação.', 'error');
+  } else {
+    // Se não tiver qualificações armazenadas, volta para o discador
+    if (AppState.isManualMode) {
+      if (DOM.manualDialerSection) DOM.manualDialerSection.style.display = 'block';
+      if (DOM.dialBtnCampaign) {
+        DOM.dialBtnCampaign.disabled = false;
+        DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
+      }
+      setTimeout(() => {
+        if (DOM.phoneInputCampaign) DOM.phoneInputCampaign.focus();
+      }, 100);
+    }
+    showToast('Chamada falhou', 'error');
   }
 }
 
@@ -1365,45 +1438,6 @@ async function handleSendQualificationFromCampaign() {
 
 // Expõe globalmente
 window.handleSendQualificationFromCampaign = handleSendQualificationFromCampaign;
-
-/**
- * Reseta o estado da chamada (inline)
- */
-function resetCallStateInline() {
-  stopCallTimer();
-  
-  AppState.currentCall = null;
-  AppState.qualifications = [];
-  AppState.selectedQualification = null;
-  
-  // Esconde painéis inline
-  if (DOM.callInfoCampaign) DOM.callInfoCampaign.style.display = 'none';
-  if (DOM.qualificationsCampaign) DOM.qualificationsCampaign.style.display = 'none';
-  if (DOM.qualificationListCampaign) DOM.qualificationListCampaign.innerHTML = '';
-  
-  // Reseta botão de qualificação
-  if (DOM.sendQualificationBtnCampaign) {
-    DOM.sendQualificationBtnCampaign.disabled = true;
-    DOM.sendQualificationBtnCampaign.textContent = 'Enviar Qualificação';
-  }
-  
-  // Reabilita botão de ligar
-  if (DOM.dialBtnCampaign) {
-    DOM.dialBtnCampaign.disabled = false;
-    DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
-  }
-  
-  // Restaura a UI
-  // Se ainda está em modo manual, mostra o discador
-  if (AppState.isManualMode) {
-    if (DOM.manualDialerSection) DOM.manualDialerSection.style.display = 'block';
-    if (DOM.btnToggleManual) DOM.btnToggleManual.style.display = 'flex';
-  } else {
-    // Se não está em modo manual, mostra a mensagem de aguardando
-    if (DOM.campaignStatusInfo) DOM.campaignStatusInfo.style.display = 'block';
-    if (DOM.btnToggleManual) DOM.btnToggleManual.style.display = 'flex';
-  }
-}
 
 /**
  * Seleciona uma campanha e faz login do agente

@@ -5,8 +5,10 @@
  * 1. Login (ramal + senha) → Autenticação
  * 2. Lista Campanhas disponíveis
  * 3. Operador seleciona campanha → Login do agente
- * 4. Na campanha, pode entrar em Modo Manual
+ * 4. Na campanha, pode entrar em Modo Manual ou seguir no Modo Dialer
  * 5. No Modo Manual, pode discar números
+ * 6. No Modo Dialer, pode aguardar chamadas
+ * 7. No fim de toda ligação, uma Qualificação deve ser selecionada
  */
 
 // ============================================================================

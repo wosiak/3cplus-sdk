@@ -971,21 +971,10 @@ function handleCallConnected(data) {
   
   const { call, agent, qualification, campaign, mailing } = data || {};
   
-  // DEBUG: Log para verificar dados recebidos
-  console.log('🔍 handleCallConnected chamado');
-  console.log('🔍 call:', call);
-  console.log('🔍 call.call_mode:', call?.call_mode);
-  console.log('🔍 mailing:', mailing);
-  
-  // Preserva o ID original se já tiver (veio do /dial)
-  // Senão, usa o que veio no evento
   const callId = AppState.currentCall?.id || call?.id;
   
   // Detecta se é chamada manual ou automática
   const isDialerCall = call?.call_mode === 'dialer';
-  
-  console.log('🔍 isDialerCall:', isDialerCall);
-  console.log('🔍 Vai renderizar dados?', isDialerCall && mailing);
   
   AppState.currentCall = {
     id: callId,
@@ -1020,7 +1009,6 @@ function handleCallConnected(data) {
   
   // Se for chamada automática, mostra dados do cliente
   if (isDialerCall && mailing) {
-    console.log('🔍 Chamando renderClientData...');
     renderClientData(mailing);
   } else {
     console.warn('⚠️ NÃO vai renderizar dados. isDialerCall:', isDialerCall, 'mailing:', !!mailing);
@@ -1060,13 +1048,9 @@ function handleCallConnected(data) {
  * Renderiza dados do cliente (chamadas automáticas)
  */
 function renderClientData(mailing) {
-  console.log('🔍 renderClientData chamado com:', mailing);
   
   const clientDataSection = document.getElementById('client-data-section');
   const clientDataList = document.getElementById('client-data-list');
-  
-  console.log('🔍 clientDataSection:', clientDataSection);
-  console.log('🔍 clientDataList:', clientDataList);
   
   if (!clientDataSection || !clientDataList) {
     console.error('❌ Elementos não encontrados!');
@@ -1100,15 +1084,12 @@ function renderClientData(mailing) {
     });
   }
   
-  console.log('🔍 dataHTML gerado:', dataHTML);
-  
   // Injeta o HTML
   clientDataList.innerHTML = dataHTML;
   
   // Mostra a seção
   clientDataSection.style.display = 'block';
   
-  console.log('✅ Dados do cliente renderizados!');
 }
 
 /**

@@ -82,13 +82,13 @@
       gap: 0.5rem;
     }
 
-    .logo::before {
-      content: '';
-      display: inline-block;
-      width: 8px;
-      height: 24px;
-      background: var(--accent-3cplus);
-      border-radius: 2px;
+    .logo-image {
+      width: 64px;           /* Tamanho da logo (ajuste conforme necessário) */
+      height: 64px;          /* Mesma altura para ficar circular */
+      border-radius: 50%;    /* Torna circular (formato de bola) */
+      object-fit: cover;     /* Garante que a imagem preencha sem distorcer */
+      border: 1px solid black; /* Borda opcional para destaque */
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Sombra sutil opcional */
     }
 
     .logo span {
@@ -613,8 +613,8 @@
     }
 
     .call-avatar {
-      width: 60px;
-      height: 60px;
+      width: 64px;   
+      height: 64px;  
       border-radius: 50%;
       background: linear-gradient(135deg, var(--accent-blue), var(--accent-3cplus));
       display: flex;
@@ -623,8 +623,8 @@
       font-size: 1.5rem;
       font-weight: 700;
       color: white;
+      overflow: hidden;
     }
-
     .call-meta h2 {
       font-size: 1.5rem;
       font-weight: 700;
@@ -931,7 +931,9 @@
 </head>
 <body>
   <header>
-    <div class="logo">3C Plus <span>Operador</span></div>
+    <div class="logo">
+    <img src="assets/3cplus-logo.jpeg" alt="3C Plus Logo" class="logo-image">
+    </div>
     <div class="header-right" id="header-right">
       <div class="status-badge disconnected" id="connection-status">
         <span class="status-dot"></span>
@@ -1052,7 +1054,7 @@
           <!-- Call Info (shows when call is active) -->
           <div id="call-info-campaign" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
             <div class="call-header" style="border-bottom: none; padding-bottom: 0; margin-bottom: 1rem;">
-              <div class="call-avatar" id="call-avatar-campaign">📞</div>
+              <div class="call-avatar" id="call-avatar-campaign"><img src="assets/3cplus-dark-logo.jpg" alt="3C Plus Logo" class="logo-image"></div>
               <div class="call-meta">
                 <h2 id="call-phone-campaign" style="font-size: 1.25rem;">--</h2>
                 <span id="call-status-campaign">Chamada conectada</span>

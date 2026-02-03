@@ -5,6 +5,7 @@ export const SocketEvents = {
     
     // Login/Logout
     AGENT_IS_IDLE: 'agent-is-idle',
+    AGENT_IS_ACW: 'agent-is-acw',
     AGENT_LOGIN_FAILED: 'agent-login-failed',
     AGENT_WAS_LOGGED_OUT: 'agent-was-logged-out',
     

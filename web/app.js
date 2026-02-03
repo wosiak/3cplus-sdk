@@ -64,6 +64,7 @@ const SocketEvents = {
   
   // Login/Logout
   AGENT_IS_IDLE: 'agent-is-idle',
+  AGENT_IS_ACW: 'agent-is-acw',
   AGENT_LOGIN_FAILED: 'agent-login-failed',
   AGENT_WAS_LOGGED_OUT: 'agent-was-logged-out',
   
@@ -493,10 +494,13 @@ async function callHangup(callId) {
 }
 
 /**
- * Envia qualificação para a chamada manual atual
+ * Envia qualificação para a chamada atual
  */
-async function sendQualification(callId, qualificationId) {
-  const endpoint = `agent/manual_call/${callId}/qualify`;
+async function sendQualification(callId, qualificationId, isManualCall = true) {
+  // Define a endpoint correta baseado no tipo de chamada
+  const endpoint = isManualCall 
+    ? `agent/manual_call/${callId}/qualify`
+    : `agent/call/${callId}/qualify`;
   
   return await apiRequest(endpoint, {
     method: 'POST',
@@ -724,6 +728,11 @@ function handleSocketEvent(event, data) {
       handleAgentIdle(data);
       break;
       
+    case SocketEvents.AGENT_IS_ACW:
+      // Agente está em TPA (pós-atendimento) - mantém qualificações visíveis
+      showToast('Aguardando qualificação', 'info');
+      break;
+      
     case SocketEvents.AGENT_ENTERED_MANUAL:
       // Confirmação de entrada no modo manual - MUDA PARA TELA AMARELA
       handleAgentEnteredManual();
@@ -924,17 +933,31 @@ function handleCallHistoryCreated(data) {
  */
 function handleCallConnected(data) {
   
-  const { call, agent, qualification, campaign } = data || {};
+  const { call, agent, qualification, campaign, mailing } = data || {};
+  
+  // DEBUG: Log para verificar dados recebidos
+  console.log('🔍 handleCallConnected chamado');
+  console.log('🔍 call:', call);
+  console.log('🔍 call.call_mode:', call?.call_mode);
+  console.log('🔍 mailing:', mailing);
   
   // Preserva o ID original se já tiver (veio do /dial)
   // Senão, usa o que veio no evento
   const callId = AppState.currentCall?.id || call?.id;
   
+  // Detecta se é chamada manual ou automática
+  const isDialerCall = call?.call_mode === 'dialer';
+  
+  console.log('🔍 isDialerCall:', isDialerCall);
+  console.log('🔍 Vai renderizar dados?', isDialerCall && mailing);
+  
   AppState.currentCall = {
     id: callId,
     phone: call?.phone || call?.number || AppState.currentCall?.phone,
     agentName: agent?.name || AppState.currentCall?.agentName,
-    campaignName: campaign?.name || AppState.currentCampaign?.name || 'N/A'
+    campaignName: campaign?.name || AppState.currentCampaign?.name || 'N/A',
+    callMode: call?.call_mode || 'manual',
+    mailing: isDialerCall ? mailing : null
   };
   
   // Guarda o último call.id para qualificação pós-chamada
@@ -951,12 +974,25 @@ function handleCallConnected(data) {
     DOM.manualDialerSection.style.display = 'none';
   }
   
-  // Atualiza a UI com informações da chamada (inline)
+  // Atualiza a UI com informações da chamada
   if (DOM.callPhoneCampaign) {
     DOM.callPhoneCampaign.textContent = formatPhone(AppState.currentCall.phone);
   }
   if (DOM.callIdCampaign) {
     DOM.callIdCampaign.textContent = AppState.currentCall.id || '--';
+  }
+  
+  // Se for chamada automática, mostra dados do cliente
+  if (isDialerCall && mailing) {
+    console.log('🔍 Chamando renderClientData...');
+    renderClientData(mailing);
+  } else {
+    console.warn('⚠️ NÃO vai renderizar dados. isDialerCall:', isDialerCall, 'mailing:', !!mailing);
+    // Se for manual, esconde a seção de dados do cliente
+    const clientDataSection = document.getElementById('client-data-section');
+    if (clientDataSection) {
+      clientDataSection.style.display = 'none';
+    }
   }
   
   // Inicia o timer de duração
@@ -974,13 +1010,69 @@ function handleCallConnected(data) {
     hangupBtn.innerHTML = '📞 Desligar';
   }
   
-  // Armazena qualificações para uso posterior
+  // Armazena e mostra qualificações
   const qualifications = qualification?.qualifications || [];
   if (qualifications.length > 0) {
     AppState.qualifications = qualifications;
+    renderQualificationsInline(qualifications);
   }
   
   showToast('Chamada conectada!', 'success');
+}
+
+/**
+ * Renderiza dados do cliente (chamadas automáticas)
+ */
+function renderClientData(mailing) {
+  console.log('🔍 renderClientData chamado com:', mailing);
+  
+  const clientDataSection = document.getElementById('client-data-section');
+  const clientDataList = document.getElementById('client-data-list');
+  
+  console.log('🔍 clientDataSection:', clientDataSection);
+  console.log('🔍 clientDataList:', clientDataList);
+  
+  if (!clientDataSection || !clientDataList) {
+    console.error('❌ Elementos não encontrados!');
+    return;
+  }
+  
+  let dataHTML = '';
+  
+  // Adiciona o identificador primeiro
+  if (mailing.identifier) {
+    dataHTML += `
+      <div class="detail-card">
+        <div class="detail-label">Identificador</div>
+        <div class="detail-value">${mailing.identifier}</div>
+      </div>
+    `;
+  }
+  
+  // Adiciona os campos customizados de mailing.data
+  if (mailing.data && typeof mailing.data === 'object') {
+    Object.keys(mailing.data).forEach(key => {
+      const value = mailing.data[key];
+      if (value !== null && value !== undefined && value !== '') {
+        dataHTML += `
+          <div class="detail-card">
+            <div class="detail-label">${key}</div>
+            <div class="detail-value">${value}</div>
+          </div>
+        `;
+      }
+    });
+  }
+  
+  console.log('🔍 dataHTML gerado:', dataHTML);
+  
+  // Injeta o HTML
+  clientDataList.innerHTML = dataHTML;
+  
+  // Mostra a seção
+  clientDataSection.style.display = 'block';
+  
+  console.log('✅ Dados do cliente renderizados!');
 }
 
 /**
@@ -994,13 +1086,20 @@ function handleCallFinished(data) {
     DOM.callInfoCampaign.style.display = 'none';
   }
   
+  // Esconde a seção de dados do cliente
+  const clientDataSection = document.getElementById('client-data-section');
+  if (clientDataSection) {
+    clientDataSection.style.display = 'none';
+  }
+  
   // Limpa o estado da chamada
   AppState.currentCall = null;
   
   // Se já qualificou (qualifications vazias), volta para o modo correto
   if (AppState.qualifications.length === 0) {
-    // Já qualificou, restaura o modo manual se estiver ativo
+    // Já qualificou, restaura a UI baseado no modo
     if (AppState.isManualMode) {
+      // Modo manual: mostra o discador
       if (DOM.manualDialerSection) DOM.manualDialerSection.style.display = 'block';
       if (DOM.dialBtnCampaign) {
         DOM.dialBtnCampaign.disabled = false;
@@ -1009,6 +1108,14 @@ function handleCallFinished(data) {
       setTimeout(() => {
         if (DOM.phoneInputCampaign) DOM.phoneInputCampaign.focus();
       }, 100);
+    } else {
+      // Modo automático (discador): mostra status "Aguardando chamadas"
+      if (DOM.campaignStatusInfo) {
+        DOM.campaignStatusInfo.style.display = 'block';
+      }
+      if (DOM.btnToggleManual) {
+        DOM.btnToggleManual.style.display = 'flex';
+      }
     }
     showToast('Chamada finalizada', 'info');
   } else {
@@ -1037,6 +1144,12 @@ function handleCallNotAnswered(data) {
   // Esconde o discador manual
   if (DOM.manualDialerSection) {
     DOM.manualDialerSection.style.display = 'none';
+  }
+  
+  // Esconde a seção de dados do cliente
+  const clientDataSection = document.getElementById('client-data-section');
+  if (clientDataSection) {
+    clientDataSection.style.display = 'none';
   }
   
   // Limpa currentCall, mas mantém lastCallId para qualificação
@@ -1076,6 +1189,12 @@ function handleCallFailed(data) {
   // Esconde o discador manual
   if (DOM.manualDialerSection) {
     DOM.manualDialerSection.style.display = 'none';
+  }
+  
+  // Esconde a seção de dados do cliente
+  const clientDataSection = document.getElementById('client-data-section');
+  if (clientDataSection) {
+    clientDataSection.style.display = 'none';
   }
   
   // Limpa currentCall, mas mantém lastCallId para qualificação
@@ -1388,7 +1507,10 @@ async function handleSendQualificationFromCampaign() {
   }
   
   try {
-    await sendQualification(callId, AppState.selectedQualification);
+    // Determina se é chamada manual ou automática
+    const isManualCall = AppState.isManualMode || (AppState.currentCall?.callMode === 'manual');
+    
+    await sendQualification(callId, AppState.selectedQualification, isManualCall);
     
     showToast('Qualificação enviada com sucesso!', 'success');
     addEventLog('qualification-sent', `Qualificação ID: ${AppState.selectedQualification}`);
@@ -1401,8 +1523,9 @@ async function handleSendQualificationFromCampaign() {
     if (!AppState.currentCall) {
       AppState.lastCallId = null;
       
-      // Restaura o modo manual se estiver ativo
+      // Restaura a UI baseado no modo
       if (AppState.isManualMode) {
+        // Modo manual: mostra o discador
         if (DOM.manualDialerSection) DOM.manualDialerSection.style.display = 'block';
         if (DOM.btnToggleManual) DOM.btnToggleManual.style.display = 'flex';
         if (DOM.dialBtnCampaign) {
@@ -1412,6 +1535,14 @@ async function handleSendQualificationFromCampaign() {
         setTimeout(() => {
           if (DOM.phoneInputCampaign) DOM.phoneInputCampaign.focus();
         }, 100);
+      } else {
+        // Modo automático (discador): mostra status "Aguardando chamadas"
+        if (DOM.campaignStatusInfo) {
+          DOM.campaignStatusInfo.style.display = 'block';
+        }
+        if (DOM.btnToggleManual) {
+          DOM.btnToggleManual.style.display = 'flex';
+        }
       }
     }
     

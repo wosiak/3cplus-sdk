@@ -28,7 +28,7 @@ export class ManualCallService {
     );
     return response.data;
   }
-  
+
   async manualCallHangup(callId: string) {
     return this.client.instance.post(`agent/call/${callId}/hangup`);
   }

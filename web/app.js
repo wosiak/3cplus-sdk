@@ -208,6 +208,9 @@ const DOM = {
   
   // Campaign Status Info
   campaignStatusInfo: document.getElementById('campaign-status-info'),
+  campaignHeaderStatus: document.getElementById('campaign-header-status'),
+  campaignStatusText: document.getElementById('campaign-status-text'),
+  campaignStatusHint: document.getElementById('campaign-status-hint'),
   
   // Manual Mode (inline in campaign)
   btnToggleManual: document.getElementById('btn-toggle-manual'),
@@ -806,13 +809,6 @@ function handleAgentIdle(data) {
     // Restaura UI para estado inicial
     AppState.isManualMode = false;
     
-    if (DOM.campaignStatusInfo) {
-      DOM.campaignStatusInfo.style.display = 'block';
-    }
-    if (DOM.btnToggleManual) {
-      DOM.btnToggleManual.style.display = 'flex';
-      DOM.btnToggleManual.classList.remove('active');
-    }
     if (DOM.manualDialerSection) {
       DOM.manualDialerSection.style.display = 'none';
     }
@@ -822,10 +818,50 @@ function handleAgentIdle(data) {
     if (DOM.qualificationsCampaign) {
       DOM.qualificationsCampaign.style.display = 'none';
     }
+    
+    // Atualiza o texto ANTES de mostrar
+    updateCampaignStatusText();
+    
+    if (DOM.campaignStatusInfo) {
+      DOM.campaignStatusInfo.style.display = 'block';
+    }
+    if (DOM.btnToggleManual) {
+      DOM.btnToggleManual.style.display = 'flex';
+      DOM.btnToggleManual.classList.remove('active');
+    }
   }
   // STATUS_ON_MANUAL_CALL = 4: Agente ainda está em modo manual
   else if (agentStatus === 4) {
     // Não faz nada, mantém o estado atual
+  }
+}
+
+/**
+ * Atualiza o texto do header da campanha baseado no modo atual
+ */
+function updateCampaignStatusText() {
+  if (AppState.isManualMode) {
+    // Modo Manual Ativo
+    if (DOM.campaignHeaderStatus) {
+      DOM.campaignHeaderStatus.textContent = '● Modo Manual Ativo';
+    }
+    if (DOM.campaignStatusText) {
+      DOM.campaignStatusText.textContent = 'Você está discando manualmente.';
+    }
+    if (DOM.campaignStatusHint) {
+      DOM.campaignStatusHint.textContent = 'Clique no botão azul para voltar ao discador automático.';
+    }
+  } else {
+    // Modo Discador Automático
+    if (DOM.campaignHeaderStatus) {
+      DOM.campaignHeaderStatus.textContent = '● Conectado à campanha';
+    }
+    if (DOM.campaignStatusText) {
+      DOM.campaignStatusText.textContent = 'Aguardando chamadas do discador automático';
+    }
+    if (DOM.campaignStatusHint) {
+      DOM.campaignStatusHint.textContent = 'Clique no botão laranja para discar manualmente.';
+    }
   }
 }
 
@@ -1103,21 +1139,22 @@ function handleCallFinished(data) {
       if (DOM.manualDialerSection) DOM.manualDialerSection.style.display = 'block';
       if (DOM.dialBtnCampaign) {
         DOM.dialBtnCampaign.disabled = false;
-        DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
-      }
-      setTimeout(() => {
-        if (DOM.phoneInputCampaign) DOM.phoneInputCampaign.focus();
-      }, 100);
-    } else {
-      // Modo automático (discador): mostra status "Aguardando chamadas"
-      if (DOM.campaignStatusInfo) {
-        DOM.campaignStatusInfo.style.display = 'block';
-      }
-      if (DOM.btnToggleManual) {
-        DOM.btnToggleManual.style.display = 'flex';
-      }
+      DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
     }
-    showToast('Chamada finalizada', 'info');
+    setTimeout(() => {
+      if (DOM.phoneInputCampaign) DOM.phoneInputCampaign.focus();
+    }, 100);
+  } else {
+    // Modo automático (discador): mostra status "Aguardando chamadas"
+    updateCampaignStatusText(); // Atualiza texto do header
+    if (DOM.campaignStatusInfo) {
+      DOM.campaignStatusInfo.style.display = 'block';
+    }
+    if (DOM.btnToggleManual) {
+      DOM.btnToggleManual.style.display = 'flex';
+    }
+  }
+  showToast('Chamada finalizada', 'info');
   } else {
     // Ainda não qualificou, mantém as qualificações visíveis
     showToast('Chamada finalizada. Selecione uma qualificação.', 'warning');
@@ -1344,6 +1381,11 @@ async function handleEnterManualModeInline() {
     // Mas podemos mostrar imediatamente também
     AppState.isManualMode = true;
     
+    // Esconde o campaignStatusInfo
+    if (DOM.campaignStatusInfo) {
+      DOM.campaignStatusInfo.style.display = 'none';
+    }
+    
     if (DOM.manualDialerSection) {
       DOM.manualDialerSection.style.display = 'block';
     }
@@ -1381,6 +1423,12 @@ async function handleExitManualModeInline() {
     }
     if (DOM.btnToggleManual) {
       DOM.btnToggleManual.classList.remove('active');
+    }
+    
+    // Atualiza o texto e mostra o campaignStatusInfo novamente
+    updateCampaignStatusText();
+    if (DOM.campaignStatusInfo) {
+      DOM.campaignStatusInfo.style.display = 'block';
     }
     
     // Limpa o input
@@ -1529,25 +1577,26 @@ async function handleSendQualificationFromCampaign() {
         if (DOM.manualDialerSection) DOM.manualDialerSection.style.display = 'block';
         if (DOM.btnToggleManual) DOM.btnToggleManual.style.display = 'flex';
         if (DOM.dialBtnCampaign) {
-          DOM.dialBtnCampaign.disabled = false;
-          DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
-        }
-        setTimeout(() => {
-          if (DOM.phoneInputCampaign) DOM.phoneInputCampaign.focus();
-        }, 100);
-      } else {
-        // Modo automático (discador): mostra status "Aguardando chamadas"
-        if (DOM.campaignStatusInfo) {
-          DOM.campaignStatusInfo.style.display = 'block';
-        }
-        if (DOM.btnToggleManual) {
-          DOM.btnToggleManual.style.display = 'flex';
-        }
+        DOM.dialBtnCampaign.disabled = false;
+        DOM.dialBtnCampaign.innerHTML = '📞 Ligar';
+      }
+      setTimeout(() => {
+        if (DOM.phoneInputCampaign) DOM.phoneInputCampaign.focus();
+      }, 100);
+    } else {
+      // Modo automático (discador): mostra status "Aguardando chamadas"
+      updateCampaignStatusText(); // Atualiza texto do header
+      if (DOM.campaignStatusInfo) {
+        DOM.campaignStatusInfo.style.display = 'block';
+      }
+      if (DOM.btnToggleManual) {
+        DOM.btnToggleManual.style.display = 'flex';
       }
     }
-    
-    // Esconde apenas o painel de qualificações
-    if (DOM.qualificationsCampaign) DOM.qualificationsCampaign.style.display = 'none';
+  }
+  
+  // Esconde apenas o painel de qualificações
+  if (DOM.qualificationsCampaign) DOM.qualificationsCampaign.style.display = 'none';
     if (DOM.qualificationListCampaign) DOM.qualificationListCampaign.innerHTML = '';
     if (DOM.sendQualificationBtnCampaign) {
       DOM.sendQualificationBtnCampaign.disabled = true;

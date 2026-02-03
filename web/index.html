@@ -1011,7 +1011,7 @@
             <div class="campaign-header-info">
               <div>
                 <div class="campaign-header-name" id="active-campaign-name">--</div>
-                <div class="campaign-header-status">● Conectado à campanha</div>
+                <div class="campaign-header-status" id="campaign-header-status">● Conectado à campanha</div>
               </div>
             </div>
             <button class="btn-icon-manual" id="btn-toggle-manual" onclick="toggleManualMode()" title="Modo Manual">
@@ -1020,11 +1020,11 @@
           </div>
           
           <div class="campaign-status-info" id="campaign-status-info">
-            <p style="color: var(--text-secondary); margin-bottom: 0.5rem;">
+            <p style="color: var(--text-secondary); margin-bottom: 0.5rem;" id="campaign-status-text">
               Aguardando chamadas do discador automático...
             </p>
-            <p style="color: var(--text-muted); font-size: 0.8rem;">
-              💡 Clique no botão laranja para discar manualmente.
+            <p style="color: var(--text-muted); font-size: 0.8rem;" id="campaign-status-hint">
+              Clique no botão laranja para discar manualmente.
             </p>
           </div>
 

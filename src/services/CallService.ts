@@ -1,6 +1,6 @@
 // src/services/CallService.ts
 import { createApiClient } from '../api/ApiClientFactory';
-import { ManualCallQualify, ManualCallQualifyResponse } from '../models/ManualCall';
+import { CallQualify, CallQualifyResponse } from '../models/Call';
 
 export class CallService {
   private client;
@@ -9,8 +9,8 @@ export class CallService {
     this.client = createApiClient(domain);
   }
 
-  async qualify(callId: string, data: ManualCallQualify): Promise<ManualCallQualifyResponse> {
-    const response = await this.client.instance.post<ManualCallQualifyResponse>(
+  async qualify(callId: string, data: CallQualify): Promise<CallQualifyResponse> {
+    const response = await this.client.instance.post<CallQualifyResponse>(
       `agent/call/${callId}/qualify`,
       data
     );
